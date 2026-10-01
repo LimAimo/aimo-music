@@ -1,0 +1,46 @@
+.app-shell { min-height: 100svh; }
+.app-header { z-index: 30; position: sticky; top: 0; height: 84px; isolation: isolate; }
+.app-header::before { content: ''; position: absolute; inset: 0 0 -32px; z-index: -1; pointer-events: none; background: linear-gradient(to bottom, var(--bg) 0%,color-mix(in srgb,var(--bg) 95%,transparent) 53%,transparent 100%); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); mask-image: linear-gradient(to bottom, #000 0%, #000 46%, transparent 100%); }
+.app-header::after { content: ''; position: absolute; bottom: 1px; left: max(24px,calc((100vw - var(--content-max))/2)); right: max(24px,calc((100vw - var(--content-max))/2)); height: 1px; opacity: 0; pointer-events: none; background: linear-gradient(90deg,transparent,var(--border-soft) 18%,var(--border-soft) 82%,transparent); transition: opacity .2s; }
+.app-header.is-scrolled::after { opacity: 1; }
+.header-inner { position: relative; height: 100%; max-width: calc(var(--content-max) + 68px); padding: 0 34px; margin: auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; column-gap: 20px; }
+.brand { display: flex; align-items: center; justify-self: start; gap: 12px; padding: 4px 0; border-radius: 6px; }
+.brand-record { width: 26px; height: 26px; border-radius: 50%; background: var(--text-primary); position: relative; box-shadow: inset 0 0 0 5px var(--text-primary), inset 0 0 0 6px var(--bg); }
+.brand-record::after { position: absolute; content: ''; inset: 8px; background: var(--accent); border-radius: 50%; }
+.brand-record span { position:absolute; left: 11px; top: 11px; height: 4px; width: 4px; background: var(--bg-elevated); z-index: 2; border-radius: 50%; }
+.brand-wordmark { font-family: var(--font-serif); font-size: 20px; font-weight: 700; letter-spacing: -.045em; white-space: nowrap; }
+.brand-wordmark em { font-weight: 500; color: var(--text-secondary); }
+.header-actions { justify-self: end; display: flex; align-items: center; gap: 5px; }
+.header-actions .button { min-height: 40px; padding-inline: 13px; }
+.segmented { --seg-text-active: var(--bg-elevated); position: relative; display: inline-flex; gap: 2px; align-items: stretch; padding: 4px; background: var(--bg-sunken); border: 1px solid var(--border-soft); border-radius: 13px; width: fit-content; touch-action: pan-y; }
+.seg-indicator { position: absolute; left: 4px; top: 4px; bottom: 4px; width: 0; background: var(--text-primary); border-radius: 9px; transition: width .26s var(--ease), transform .26s var(--ease); pointer-events: none; }
+.seg-indicator.no-motion { transition: none !important; }
+.seg-item { isolation: isolate; position: relative; min-height: 36px; min-width: 70px; padding: 0 17px; border-radius: 9px; color: var(--text-secondary); font-size: 13px; font-weight: 600; white-space: nowrap; touch-action: pan-y; }
+.seg-item:disabled { opacity: 1; }
+.seg-label, .seg-text-invert { display: block; white-space: nowrap; }
+.seg-text-invert { position: absolute; top: 50%; left: 0; width: 100%; transform: translateY(-50%); color: var(--bg); pointer-events: none; clip-path: inset(0 100% 0 0); }
+.seg-item:focus-visible { outline-offset: 4px; }
+.main-view { max-width: var(--content-max); padding: 42px 34px 176px; margin: 0 auto; min-height: calc(100svh - 84px); outline: none; }
+.page { animation: page-enter .3s var(--ease) both; }
+@keyframes page-enter { from { opacity: .5; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+#toast-slot { position: fixed; z-index: 160; bottom: calc(122px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); pointer-events: none; width: max-content; max-width: min(440px,calc(100vw - 24px)); }
+.toast { padding: 12px 18px; background: var(--text-primary); color: var(--bg); border-radius: var(--radius-popover); font-size: 13px; line-height: 1.6; box-shadow: var(--shadow-popover); animation: toast-in .2s ease both; }
+.toast--error { background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+body.overlay-open { overflow: hidden; }
+.dialog-overlay { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgb(15 12 9 / 52%); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); animation: overlay-enter .2s ease both; }
+@keyframes overlay-enter { from { opacity: 0; } to { opacity: 1; } }
+.dialog-panel { width: min(100%, 448px); max-height: min(86svh,850px); display: flex; flex-direction: column; background: var(--bg); padding: 28px; border-radius: var(--radius-modal); box-shadow: var(--shadow-lg); animation: dialog-enter .25s var(--ease) both; }
+@keyframes dialog-enter { from { opacity: .6; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 20px; }
+.dialog-head h2 { font-size: 28px; }
+.dialog-panel > p { color: var(--text-secondary); line-height: 1.75; font-size: 14px; }
+.dialog-actions { padding-top: 28px; display: flex; justify-content: flex-end; gap: 10px; }
+.settings-panel { width: min(100%,520px); }
+.settings-panel form { overflow-y: auto; min-height: 0; scrollbar-width: thin; }
+.form-section { display: flex; flex-direction: column; gap: 8px; border: 0; border-top: 1px solid var(--border-soft); padding: 20px 0; margin: 0; }
+.form-section legend { font-weight: 700; font-size: 14px; padding-right: 8px; }
+.form-label { font-size: 13px; color: var(--text-secondary); font-weight: 600; margin-top: 6px; }
+.form-section input, .form-section select { display: block; width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--bg-elevated); color: var(--text-primary); }
+.form-section p { font-size: 12px; line-height: 1.7; color: var(--text-tertiary); }
+#api-test-result { font-size: 12px; line-height: 1.6; color: var(--text-secondary); min-height: 0; }

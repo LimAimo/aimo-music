@@ -1,0 +1,40 @@
+// 全站单一线性图标出口，线宽一致；不在业务组件重复定义 SVG。
+const paths = {
+  play: '<polygon points="7 4 20 12 7 20 7 4"/>',
+  pause: '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>',
+  next: '<path d="m5 4 10 8-10 8V4Z"/><path d="M19 5v14"/>',
+  prev: '<path d="M19 4 9 12l10 8V4Z"/><path d="M5 5v14"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+  heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>',
+  list: '<path d="M9 6h12M9 12h12M9 18h12M3 6h.01M3 12h.01M3 18h.01"/>',
+  lyric: '<path d="M4 6h16M4 11h10M4 16h13M4 21h8"/>',
+  shuffle: '<path d="m18 14 4 4-4 4M18 2l4 4-4 4M2 18h3c6 0 7-12 14-12h3M2 6h3c3 0 4 2 5 4M14 14c1.4 2.2 2.8 4 5 4h3"/>',
+  repeat: '<path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3"/>',
+  repeatOne: '<path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3M12 10v6m-2-4 2-2"/>',
+  volume: '<path d="M11 5 6 9H3v6h3l5 4V5ZM15.5 8.5a5 5 0 0 1 0 7M18 5a10 10 0 0 1 0 14"/>',
+  mute: '<path d="M11 5 6 9H3v6h3l5 4V5ZM17 9l5 6M22 9l-5 6"/>',
+  moon: '<path d="M20.9 14.4A9 9 0 0 1 9.6 3.1a9 9 0 1 0 11.3 11.3Z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  chevronLeft: '<path d="m15 18-6-6 6-6"/>',
+  chevronRight: '<path d="m9 18 6-6-6-6"/>',
+  arrowUp: '<path d="m12 19 0-14M5 12l7-7 7 7"/>',
+  close: '<path d="M18 6 6 18M6 6l12 12"/>',
+  upload: '<path d="M12 16V3m-5 5 5-5 5 5M5 17v3h14v-3"/>',
+  music: '<path d="M9 18V5l12-2v13M9 8l12-2"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  disc: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/><path d="M7 5a8 8 0 0 0-2 3m14 8a8 8 0 0 1-2 3"/>',
+  check: '<path d="m4 12 5 5L20 6"/>',
+  settings: '<path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.2 2.2m8.4 8.4 2.2 2.2M18.4 5.6l-2.2 2.2m-8.4 8.4-2.2 2.2"/><circle cx="12" cy="12" r="4"/>',
+  trash: '<path d="M3 6h18M8 6V4h8v2m3 0-1 15H6L5 6M10 10v7m4-7v7"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 11v6M12 7v.01"/>',
+  wifi: '<path d="M2 8a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0m-11 4a5 5 0 0 1 8 0M12 20h.01"/>',
+  external: '<path d="M13 5h6v6M19 5l-9 9M19 13v6H5V5h6"/>',
+  grip: '<path d="M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01"/>',
+  expand: '<path d="M8 3H3v5M3 3l7 7m6 11h5v-5m0 5-7-7"/>',
+  spinner: '<path d="M12 2a10 10 0 1 1-10 10"/>',
+};
+export function icon(name, size = 20, extraClass = '') {
+  const safeName = paths[name] ? name : 'music';
+  return `<svg class="icon ${extraClass}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[safeName]}</svg>`;
+}

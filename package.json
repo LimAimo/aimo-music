@@ -1,0 +1,14 @@
+{
+  "name": "aimo-music",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Aimo Music · 轻量网页音乐播放器",
+  "scripts": {
+    "dev": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "preview": "npm --prefix client run preview",
+    "test": "node --test tests/*.test.mjs",
+    "check": "npm run test && node --check client/src/main.js"
+  }
+}

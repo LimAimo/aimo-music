@@ -1,0 +1,71 @@
+/* 唯一设计 Token 真源。沿用 AimoChat 3.37.x 纸张 / 墨色 / 陶土语义。 */
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-serif: "Noto Serif CJK SC", "Noto Serif SC", "Source Han Serif SC", "Songti SC", Georgia, serif;
+  --bg: #F2EDE4; --bg-elevated: #FFFDF8; --bg-sunken: #E9E1D5; --panel: #F7F2E9;
+  --text-primary: #1D1B18; --text-secondary: #625B52; --text-tertiary: #6B6257;
+  --border: #D7CCBD; --border-soft: #E6DED3;
+  --accent: #95654F; --accent-hover: #7E523F; --accent-soft: #EDE0D8; --accent-text: #FFFDF8;
+  --link: #95654F; --link-hover: #7E523F;
+  --success: #477653; --warning: #9C6A34; --danger: #A34F48; --danger-soft: #F3E1DE;
+  --radius-control: 10px; --radius-item: 8px; --radius-surface: 14px; --radius-popover: 14px;
+  --radius-modal: 22px; --radius-sheet: 24px;
+  --shadow-popover: 0 14px 38px rgb(29 27 24 / 13%); --shadow-lg: 0 28px 75px rgb(29 27 24 / 17%);
+  --content-max: 1240px;
+  --ease: cubic-bezier(.22,1,.36,1);
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #171613; --bg-elevated: #24211D; --bg-sunken: #12110F; --panel: #1F1D19;
+  --text-primary: #F4EEE4; --text-secondary: #C2B8AA; --text-tertiary: #A99E90;
+  --border: #51493F; --border-soft: #37322C;
+  --accent: #C3977F; --accent-hover: #D3AC96; --accent-soft: #382B24; --accent-text: #171613;
+  --link: #C3977F; --link-hover: #D3AC96;
+  --success: #98C5A1; --warning: #E3B276; --danger: #E6A19B; --danger-soft: #432723;
+  --shadow-popover: 0 14px 44px rgb(0 0 0 / 34%); --shadow-lg: 0 30px 90px rgb(0 0 0 / 45%);
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; background: var(--bg); }
+body { margin: 0; min-width: 320px; background: var(--bg); color: var(--text-primary); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; }
+button { border: 0; cursor: pointer; color: inherit; background: transparent; }
+button:disabled { opacity: .35; cursor: not-allowed; }
+button:not(:disabled):active { transform: scale(.985); }
+button:focus-visible, a:focus-visible, input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+input:not([type="range"]):focus, select:focus, textarea:focus { outline: none; border-color: var(--accent) !important; box-shadow: none !important; }
+a { color: var(--link); text-decoration: none; }
+a:hover { color: var(--link-hover); }
+::selection { background: var(--accent-soft); color: var(--text-primary); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.icon { flex: none; display: inline-block; vertical-align: middle; pointer-events: none; }
+.icon-button { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; flex: none; border-radius: var(--radius-item); color: var(--text-secondary); transition: color .16s, background .16s, opacity .16s; }
+.icon-button:hover:not(:disabled) { background: var(--bg-sunken); color: var(--text-primary); }
+.icon-button.is-active, .icon-button.is-favorite { color: var(--accent); }
+.icon-button.is-favorite .icon { fill: var(--accent); }
+.button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 0 20px; min-height: 46px; border-radius: var(--radius-control); white-space: nowrap; font-weight: 550; font-size: 14px; transition: background .16s, border-color .16s, color .16s, transform .16s; }
+.button-primary { color: var(--accent-text); background: var(--accent); }
+.button-primary:hover { background: var(--accent-hover); }
+.button-quiet { border: 1px solid var(--border); background: var(--bg-elevated); }
+.button-quiet:hover, .button-secondary:hover { background: var(--bg-sunken); }
+.button-secondary { border: 1px solid var(--border); background: transparent; }
+.button-ghost { background: var(--bg-sunken); }
+.button-danger { background: var(--danger); color: var(--bg-elevated); }
+.text-action { display: inline-flex; gap: 6px; align-items: center; justify-content: center; color: var(--link); padding: 8px 0; min-height: 38px; font-size: 14px; font-weight: 560; }
+.text-action:hover { color: var(--link-hover); }
+.eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .18em; color: var(--text-tertiary); }
+h1, h2, h3, p { margin: 0; }
+h1, h2 { font-family: var(--font-serif); font-weight: 530; letter-spacing: -.047em; }
+h1 { font-size: clamp(36px, 5vw, 58px); line-height: 1.23; }
+h2 { font-size: 28px; }
+h3 { font-size: 17px; font-weight: 600; }
+input[type="range"] { --seek-fill: 0%; appearance: none; -webkit-appearance: none; cursor: pointer; height: 4px; border-radius: 999px; background: linear-gradient(to right, var(--accent) var(--seek-fill), var(--border) var(--seek-fill)); }
+input[type="range"]::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; border: 0; background: var(--text-primary); border-radius: 50%; opacity: 0; transition: opacity .12s; }
+input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 0; background: var(--text-primary); border-radius: 50%; opacity: 0; }
+input[type="range"]:hover::-webkit-slider-thumb, input[type="range"]:focus-visible::-webkit-slider-thumb { opacity: 1; }
+input[type="range"]:hover::-moz-range-thumb, input[type="range"]:focus-visible::-moz-range-thumb { opacity: 1; }
+.skeleton { display: block; background: var(--bg-sunken); border-radius: 5px; position: relative; overflow: hidden; }
+.skeleton::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg,transparent, color-mix(in srgb,var(--bg-elevated) 70%,transparent),transparent); animation: shimmer 1.5s infinite; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

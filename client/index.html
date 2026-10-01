@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#F2EDE4" />
+    <meta name="description" content="Aimo Music · 让喜欢的音乐有处可去。" />
+    <title>Aimo Music — 听你想听的</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/styles/base.css" />
+    <link rel="stylesheet" href="/src/styles/shell.css" />
+    <link rel="stylesheet" href="/src/styles/views.css" />
+    <link rel="stylesheet" href="/src/styles/player.css" />
+    <link rel="stylesheet" href="/src/styles/responsive.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <input id="local-file-picker" type="file" accept="audio/*,.mp3,.m4a,.ogg,.wav,.flac" multiple hidden />
+    <audio id="audio-engine" preload="metadata"></audio>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
