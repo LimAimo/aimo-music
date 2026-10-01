@@ -26,13 +26,14 @@
   --shadow-popover: 0 14px 44px rgb(0 0 0 / 34%); --shadow-lg: 0 30px 90px rgb(0 0 0 / 45%);
   color-scheme: dark;
 }
-*, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; background: var(--bg); }
+*, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; background: var(--bg); scrollbar-width: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; height: 0; }
 body { margin: 0; min-width: 320px; background: var(--bg); color: var(--text-primary); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; }
 button { border: 0; cursor: pointer; color: inherit; background: transparent; }
 button:disabled { opacity: .35; cursor: not-allowed; }
-button:not(:disabled):active { transform: scale(.985); }
+button:not(:disabled):active:not(.seg-item) { transform: scale(.985); }
 button:focus-visible, a:focus-visible, input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 input:not([type="range"]):focus, select:focus, textarea:focus { outline: none; border-color: var(--accent) !important; box-shadow: none !important; }
 a { color: var(--link); text-decoration: none; }

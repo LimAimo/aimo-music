@@ -22,6 +22,8 @@
 .mobile-transport, .mobile-progress { display: none; }
 /* 歌词 / 完整播放 */
 .full-overlay { position: fixed; inset: 0; z-index: 70; overflow: hidden; background: var(--bg); animation: full-enter .34s var(--ease) both; }
+.full-overlay.is-leaving { pointer-events: none; animation: full-exit .3s cubic-bezier(.4,0,1,1) both; }
+@keyframes full-exit { to { opacity: .35; transform: translateY(100%); } }
 @keyframes full-enter { from { opacity: .7; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
 .full-header { position: relative; height: 80px; display: flex; justify-content: space-between; align-items: center; max-width: 1250px; padding: 0 34px; margin: auto; }
 .full-header > span { font-size: 13px; font-weight: 650; color: var(--text-secondary); }
@@ -49,6 +51,9 @@
 .lyric-placeholder .skeleton:nth-child(even) { width: 54%; }
 .lyric-empty { display: flex; align-items: center; justify-content: center; min-height: 50%; color: var(--text-tertiary); font-family: var(--font-serif); font-size: 19px; text-align: center; line-height: 1.9; }
 /* 队列是独立上下文，不占主内容区。 */
+.queue-overlay.is-leaving .side-scrim { animation: overlay-exit .24s ease both; pointer-events: none; }
+.queue-overlay.is-leaving .queue-panel { animation: queue-out .3s cubic-bezier(.4,0,1,1) both; pointer-events: none; }
+@keyframes queue-out { to { opacity: .8; transform: translateX(100%); } }
 .side-scrim { z-index: 85; position: fixed; inset: 0; background: rgb(13 10 8 / 30%); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); animation: overlay-enter .2s both; }
 .queue-panel { z-index: 86; position: fixed; top: 0; bottom: 0; right: 0; width: min(430px,100vw); background: var(--bg); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; animation: queue-in .32s var(--ease) both; }
 @keyframes queue-in { from { transform: translateX(30%); opacity: .7; } to { transform: translateX(0); opacity: 1; } }
@@ -65,3 +70,7 @@
 .queue-entry strong { font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .queue-entry small { color: var(--text-tertiary); font-size: 11px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .queue-footer { flex: none; display: flex; justify-content: center; padding: 12px; border-top: 1px solid var(--border-soft); }
+
+@media (max-width: 860px) {
+  .queue-overlay.is-leaving .queue-panel { animation: sheet-out .3s cubic-bezier(.4,0,1,1) both; }
+}

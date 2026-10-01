@@ -112,3 +112,9 @@
 .playlist-hero-loading > div:nth-child(2) { display: flex; flex-direction: column; gap: 18px; }
 .playlist-hero-loading > div:nth-child(2) .skeleton:first-child { width: 80%; height: 54px; }
 .playlist-hero-loading > div:nth-child(2) .skeleton:last-child { width: 45%; height: 18px; }
+
+/* 音乐库只替换列表内容；Tab 指示器在原 DOM 上完成切换，不再整页入场。 */
+.library-content.is-changing { animation: library-change .22s var(--ease) both; }
+@keyframes library-change { from { opacity: .6; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.library-segmented { display: flex; max-width: 100%; }
+.library-segmented .seg-item { flex: 1 1 0; min-width: 0; }

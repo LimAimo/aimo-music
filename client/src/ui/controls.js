@@ -1,118 +1,191 @@
-/** 共用 N 段式滑块。位置、宽度与选中文字裁切均从真实 DOM 几何计算。 */
+/**
+ * 全站唯一 N 段式控制器：保持 DOM，不通过重渲染切换选中态。
+ * 指示器跟手插值、松手吸附；按钮点击与外部导航均使用同一套 260ms 动画。
+ */
 export function bindSegmentedControl(root, onSelect) {
   if (!root) return () => {};
   const indicator = root.querySelector('.seg-indicator');
   const buttons = [...root.querySelectorAll('.seg-item')];
   if (!indicator || !buttons.length) return () => {};
-  const activeButton = () => buttons.find(button => button.classList.contains('is-active')) || buttons[0];
-  function updateIndicator(target, animate = true) {
-    if (!target) return;
-    const parent = root.getBoundingClientRect();
-    const rect = target.getBoundingClientRect();
-    if (!animate) indicator.classList.add('no-motion');
-    indicator.style.transform = `translate3d(${rect.left - parent.left}px, 0, 0)`;
-    indicator.style.width = `${rect.width}px`;
-    syncTextInversion();
-    if (!animate) requestAnimationFrame(() => indicator.classList.remove('no-motion'));
+  let active = buttons.find(button => button.classList.contains('is-active')) || buttons[0];
+  let pointer = null;
+  let frame = 0;
+  let quietFrame = 0;
+  let animating = false;
+  let motionTimer = 0;
+  let suppressClick = false;
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+
+  function geometry(button) {
+    const rootRect = root.getBoundingClientRect();
+    const rect = button.getBoundingClientRect();
+    return { x: rect.left - rootRect.left, width: rect.width, center: rect.left + rect.width / 2 };
   }
   function syncTextInversion() {
     const slider = indicator.getBoundingClientRect();
-    for (const button of buttons) {
-      const inverted = button.querySelector('.seg-text-invert');
-      if (!inverted) continue;
+    buttons.forEach(button => {
+      const text = button.querySelector('.seg-text-invert');
+      if (!text) return;
       const rect = button.getBoundingClientRect();
       const start = Math.max(0, slider.left - rect.left);
       const end = Math.min(rect.width, slider.right - rect.left);
-      const left = Math.min(100, Math.max(0, start / Math.max(rect.width, 1) * 100));
-      const right = Math.min(100, Math.max(0, (rect.width - end) / Math.max(rect.width, 1) * 100));
-      inverted.style.clipPath = end > start ? `inset(0 ${right}% 0 ${left}%)` : 'inset(0 100% 0 0)';
+      const left = Math.min(100, Math.max(0, start / Math.max(1, rect.width) * 100));
+      const right = Math.min(100, Math.max(0, (rect.width - end) / Math.max(1, rect.width) * 100));
+      text.style.clipPath = end > start ? `inset(0 ${right}% 0 ${left}%)` : 'inset(0 100% 0 0)';
+    });
+  }
+  function trackAnimation() {
+    cancelAnimationFrame(frame);
+    if (reducedMotion?.matches) { syncTextInversion(); return; }
+    const tick = () => {
+      syncTextInversion();
+      if (animating) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+  }
+  function place(x, width, animate = true) {
+    cancelAnimationFrame(quietFrame);
+    if (!animate || reducedMotion?.matches) indicator.classList.add('no-motion');
+    else indicator.classList.remove('no-motion');
+    indicator.style.transform = `translate3d(${x}px, 0, 0)`;
+    indicator.style.width = `${width}px`;
+    if (!animate || reducedMotion?.matches) {
+      // 几何已同步时，文字裁切可以在当前帧直接计算。
+      syncTextInversion();
+    } else {
+      animating = true;
+      trackAnimation();
+      clearTimeout(motionTimer);
+      motionTimer = setTimeout(stopAnimation, 330);
     }
   }
-  function select(button) {
-    buttons.forEach(item => {
-      const active = item === button;
-      item.classList.toggle('is-active', active);
-      item.setAttribute('aria-selected', String(active));
-    });
-    updateIndicator(button);
-    onSelect?.(button.dataset.value);
+  function stopAnimation() {
+    animating = false;
+    cancelAnimationFrame(frame);
+    syncTextInversion();
   }
-  // 尽量避免尺寸变化后丢失实时几何，使用 ResizeObserver 自动校准。
-  const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => updateIndicator(activeButton(), false)) : null;
+  function update(button, animate = true) {
+    const { x, width } = geometry(button);
+    place(x, width, animate);
+  }
+  function setValue(value, { animate = true, notify = false } = {}) {
+    const next = buttons.find(button => button.dataset.value === value);
+    if (!next) return false;
+    const changed = next !== active;
+    active = next;
+    buttons.forEach(button => {
+      const selected = button === next;
+      button.classList.toggle('is-active', selected);
+      button.setAttribute('aria-selected', String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    });
+    update(next, animate);
+    if (changed && notify) onSelect?.(next.dataset.value);
+    return changed;
+  }
+  function updateFromPointer(clientX) {
+    const slots = buttons.map(geometry);
+    const first = slots[0];
+    const last = slots.at(-1);
+    if (clientX <= first.center) { place(first.x, first.width, false); return; }
+    if (clientX >= last.center) { place(last.x, last.width, false); return; }
+    const rightIndex = slots.findIndex(item => clientX <= item.center);
+    const left = slots[rightIndex - 1];
+    const right = slots[rightIndex];
+    const t = Math.max(0, Math.min(1, (clientX - left.center) / (right.center - left.center)));
+    place(left.x + (right.x - left.x) * t, left.width + (right.width - left.width) * t, false);
+  }
+  function onPointerDown(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const hit = e.target.closest?.('.seg-item');
+    if (!hit || !root.contains(hit)) return;
+    pointer = { id: e.pointerId, x: e.clientX, y: e.clientY, dragging: false };
+  }
+  function onPointerMove(e) {
+    if (!pointer || e.pointerId !== pointer.id) return;
+    const dx = e.clientX - pointer.x;
+    const dy = e.clientY - pointer.y;
+    if (!pointer.dragging) {
+      if (Math.abs(dx) < 5 || Math.abs(dy) > Math.abs(dx)) return;
+      pointer.dragging = true;
+      stopAnimation();
+      root.classList.add('is-dragging');
+      root.setPointerCapture?.(e.pointerId);
+    }
+    e.preventDefault();
+    updateFromPointer(e.clientX);
+  }
+  function onPointerUp(e) {
+    if (!pointer || e.pointerId !== pointer.id) return;
+    const wasDragging = pointer.dragging;
+    pointer = null;
+    root.classList.remove('is-dragging');
+    if (!wasDragging) return;
+    suppressClick = true;
+    // Chromium/Safari 的合成 click 可能在 microtask 之后才发出。
+    setTimeout(() => { suppressClick = false; }, 0);
+    const nearest = buttons.reduce((best, button) => {
+      const distance = Math.abs(geometry(button).center - e.clientX);
+      return distance < best.distance ? { button, distance } : best;
+    }, { button: active, distance: Infinity }).button;
+    setValue(nearest.dataset.value, { notify: true });
+    if (root.hasPointerCapture?.(e.pointerId)) root.releasePointerCapture(e.pointerId);
+  }
+  function onPointerCancel(e) {
+    if (!pointer || pointer.id !== e.pointerId) return;
+    pointer = null;
+    root.classList.remove('is-dragging');
+    update(active);
+  }
+  function onClick(e) {
+    if (suppressClick) return;
+    const button = e.target.closest?.('.seg-item');
+    if (button && root.contains(button)) setValue(button.dataset.value, { notify: true });
+  }
+  function onKeyDown(e) {
+    const currentIndex = buttons.indexOf(active);
+    const nextIndex = e.key === 'ArrowRight' ? Math.min(buttons.length - 1, currentIndex + 1)
+      : e.key === 'ArrowLeft' ? Math.max(0, currentIndex - 1)
+      : e.key === 'Home' ? 0 : e.key === 'End' ? buttons.length - 1 : -1;
+    if (nextIndex < 0) return;
+    e.preventDefault();
+    setValue(buttons[nextIndex].dataset.value, { notify: true });
+    buttons[nextIndex].focus();
+  }
+  const observer = typeof ResizeObserver !== 'undefined'
+    ? new ResizeObserver(() => {
+      // 避免宽度变化或字体加载打断正在执行的点击动画。
+      if (pointer?.dragging || animating) return;
+      cancelAnimationFrame(quietFrame);
+      quietFrame = requestAnimationFrame(() => update(active, false));
+    }) : null;
   observer?.observe(root);
   buttons.forEach(button => observer?.observe(button));
-  let pointer = null;
-  const onPointerDown = e => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    const hit = e.target.closest('.seg-item');
-    if (!hit) return;
-    pointer = { id: e.pointerId, startX: e.clientX, dragging: false };
-  };
-  const onPointerMove = e => {
-    if (!pointer || e.pointerId !== pointer.id) return;
-    if (!pointer.dragging && Math.abs(e.clientX - pointer.startX) < 7) return;
-    pointer.dragging = true;
-    root.setPointerCapture?.(e.pointerId);
-    const centers = buttons.map(button => button.getBoundingClientRect().left + button.getBoundingClientRect().width / 2);
-    const x = e.clientX;
-    if (x <= centers[0]) { updateIndicator(buttons[0], false); return; }
-    if (x >= centers.at(-1)) { updateIndicator(buttons.at(-1), false); return; }
-    let idx = centers.findIndex(center => x <= center);
-    idx = Math.max(1, idx);
-    const a = buttons[idx - 1].getBoundingClientRect();
-    const b = buttons[idx].getBoundingClientRect();
-    const t = Math.max(0, Math.min(1, (x - centers[idx - 1]) / (centers[idx] - centers[idx - 1])));
-    const parent = root.getBoundingClientRect();
-    indicator.classList.add('no-motion');
-    indicator.style.transform = `translate3d(${a.left - parent.left + (b.left - a.left) * t}px, 0, 0)`;
-    indicator.style.width = `${a.width + (b.width - a.width) * t}px`;
-    syncTextInversion();
-  };
-  const onPointerUp = e => {
-    if (!pointer || e.pointerId !== pointer.id) return;
-    const dragged = pointer.dragging;
-    pointer = null;
-    indicator.classList.remove('no-motion');
-    if (dragged) {
-      e.preventDefault();
-      const nearest = buttons.reduce((best, b) => {
-        const mid = b.getBoundingClientRect().left + b.getBoundingClientRect().width / 2;
-        return Math.abs(mid - e.clientX) < best.d ? { d: Math.abs(mid - e.clientX), button: b } : best;
-      }, { d: Infinity, button: activeButton() }).button;
-      select(nearest);
-      root.dataset.skipClick = '1';
-      queueMicrotask(() => { delete root.dataset.skipClick; });
-    }
-  };
-  const onClick = e => {
-    if (root.dataset.skipClick) return;
-    const button = e.target.closest('.seg-item');
-    if (button && root.contains(button)) select(button);
-  };
   root.addEventListener('pointerdown', onPointerDown);
   root.addEventListener('pointermove', onPointerMove);
   root.addEventListener('pointerup', onPointerUp);
-  root.addEventListener('pointercancel', onPointerUp);
+  root.addEventListener('pointercancel', onPointerCancel);
   root.addEventListener('click', onClick);
-  const onTransition = () => syncTextInversion();
-  indicator.addEventListener('transitionrun', () => {
-    let frame = 0;
-    const tick = () => { syncTextInversion(); if (getComputedStyle(indicator).transitionProperty !== 'none') frame = requestAnimationFrame(tick); };
-    frame = requestAnimationFrame(tick);
-    indicator.addEventListener('transitionend', () => cancelAnimationFrame(frame), { once: true });
-  });
-  updateIndicator(activeButton(), false);
-  return () => {
+  root.addEventListener('keydown', onKeyDown);
+  indicator.addEventListener('transitionend', stopAnimation);
+  setValue(active.dataset.value, { animate: false });
+  const cleanup = () => {
     observer?.disconnect();
+    clearTimeout(motionTimer);
+    cancelAnimationFrame(quietFrame);
+    stopAnimation();
     root.removeEventListener('pointerdown', onPointerDown);
     root.removeEventListener('pointermove', onPointerMove);
     root.removeEventListener('pointerup', onPointerUp);
-    root.removeEventListener('pointercancel', onPointerUp);
+    root.removeEventListener('pointercancel', onPointerCancel);
     root.removeEventListener('click', onClick);
-    indicator.removeEventListener('transitionend', onTransition);
+    root.removeEventListener('keydown', onKeyDown);
+    indicator.removeEventListener('transitionend', stopAnimation);
   };
+  cleanup.setValue = setValue;
+  return cleanup;
 }
 
 export function segmentedMarkup(items, active, className = '') {
-  return `<div class="segmented ${className}" role="tablist"><span class="seg-indicator" aria-hidden="true"></span>${items.map(item => `<button type="button" role="tab" class="seg-item ${item.value === active ? 'is-active' : ''}" aria-selected="${item.value === active}" data-value="${item.value}"><span class="seg-label">${item.label}</span><span class="seg-text-invert" aria-hidden="true">${item.label}</span></button>`).join('')}</div>`;
+  return `<div class="segmented ${className}" role="tablist"><span class="seg-indicator" aria-hidden="true"></span>${items.map(item => `<button type="button" role="tab" class="seg-item ${item.value === active ? 'is-active' : ''}" aria-selected="${item.value === active}" tabindex="${item.value === active ? 0 : -1}" data-value="${item.value}"><span class="seg-label">${item.label}</span><span class="seg-text-invert" aria-hidden="true">${item.label}</span></button>`).join('')}</div>`;
 }

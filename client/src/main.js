@@ -7,7 +7,7 @@ import { showConfirmDialog } from './ui/dialog.js';
 import { icon } from './ui/icons.js';
 import {
   header, shellMarkup, homeMarkup, searchMarkup, libraryMarkup, playlistMarkup,
-  playerMarkup, fullPlayerMarkup, queueMarkup, settingsMarkup, escapeHtml
+  playerMarkup, fullPlayerMarkup, queueMarkup, settingsMarkup, lyricMarkup, libraryContentMarkup, searchResultsMarkup, escapeHtml
 } from './ui/render.js';
 
 const app = document.getElementById('app');
@@ -66,13 +66,37 @@ function applyTheme() {
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#171613' : '#F2EDE4');
 }
 function renderHeader() {
-  bindHeader?.();
   const slot = document.getElementById('header-slot');
-  slot.innerHTML = header(state.view, currentTheme());
-  bindHeader = bindSegmentedControl(slot.querySelector('.segmented'), value => navigate(value));
+  const tab = state.view === 'playlist' ? state.backView : state.view;
+  // 固定顶栏只装配一次。销毁并重建它会打断正在进行的滑块动画。
+  if (!slot.firstElementChild) {
+    slot.innerHTML = header(tab, currentTheme());
+    bindHeader = bindSegmentedControl(slot.querySelector('.segmented'), value => navigate(value));
+  } else {
+    bindHeader?.setValue?.(tab);
+  }
   const el = document.getElementById('app-header');
-  const update = () => el?.classList.toggle('is-scrolled', window.scrollY > 12);
-  update();
+  el?.classList.toggle('is-scrolled', window.scrollY > 12);
+}
+function updateLibraryContent({ animate = false } = {}) {
+  const target = document.getElementById('library-content');
+  if (!target) return;
+  target.innerHTML = libraryContentMarkup(state);
+  if (animate) {
+    target.classList.remove('is-changing');
+    void target.offsetWidth;
+    target.classList.add('is-changing');
+  }
+  const fav = document.querySelector('.library-segmented [data-value="favorites"]');
+  if (fav) {
+    const label = `我喜欢的 · ${state.favorites.length}`;
+    fav.querySelector('.seg-label').textContent = label;
+    fav.querySelector('.seg-text-invert').textContent = label;
+  }
+}
+function updateSearchResults() {
+  const target = document.getElementById('search-results');
+  if (target) target.innerHTML = searchResultsMarkup(state);
 }
 function renderPage({ restoreFocus = false } = {}) {
   bindPage?.(); bindPage = null;
@@ -85,14 +109,14 @@ function renderPage({ restoreFocus = false } = {}) {
     : homeMarkup(state);
   const segmented = main.querySelector('.segmented');
   if (segmented) bindPage = bindSegmentedControl(segmented, value => {
-    if (state.view === 'search') {
-      if (value !== state.searchType) {
-        state.searchType = value;
-        renderPage();
-        if (value === 'playlists' && state.searchQuery && !state.searchPlaylists.length) runSearch();
-      }
-    } else if (state.view === 'library') {
-      state.libraryTab = value; renderPage();
+    if (state.view === 'search' && value !== state.searchType) {
+      state.searchType = value;
+      updateSearchResults();
+      if (value === 'playlists' && state.searchQuery && !state.searchPlaylists.length) void runSearch(state.searchQuery, { preserveTabs: true });
+      if (value === 'songs' && state.searchQuery && !state.searchSongs.length) void runSearch(state.searchQuery, { preserveTabs: true });
+    } else if (state.view === 'library' && value !== state.libraryTab) {
+      state.libraryTab = value;
+      updateLibraryContent({ animate: true });
     }
   });
   if (focusedSearch) {
@@ -102,20 +126,88 @@ function renderPage({ restoreFocus = false } = {}) {
   }
 }
 function renderPlayer() { document.getElementById('player-slot').innerHTML = playerMarkup(state); updateProgress(); }
+
+function refreshOverlayLock() {
+  document.body.classList.toggle('overlay-open', Boolean(document.querySelector('#overlay-slot .full-overlay, #overlay-slot .dialog-overlay, #overlay-slot .queue-panel')));
+}
+function dismissOverlay(node, delay = 350) {
+  if (!node || node.classList.contains('is-leaving')) return;
+  node.classList.add('is-leaving');
+  const timeout = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : delay;
+  setTimeout(() => { node.remove(); refreshOverlayLock(); }, timeout);
+}
 function renderOverlay() {
   const slot = document.getElementById('overlay-slot');
-  const oldLyricViewport = document.getElementById('lyric-viewport');
-  const oldScroll = oldLyricViewport?.scrollTop ?? 0;
-  const previousTrackId = slot.dataset.currentId;
-  slot.innerHTML = (state.fullOpen ? fullPlayerMarkup(state) : '')
-    + (state.queueOpen ? queueMarkup(state) : '')
-    + (state.settingsOpen ? settingsMarkup(state) : '');
-  document.body.classList.toggle('overlay-open', state.fullOpen || state.queueOpen || state.settingsOpen);
-  const newLyricViewport = document.getElementById('lyric-viewport');
-  if (newLyricViewport && previousTrackId === state.current?.id) newLyricViewport.scrollTop = oldScroll;
-  slot.dataset.currentId = state.current?.id || '';
+  const trackId = String(state.current?.id || '');
+  let full = slot.querySelector('#full-player:not(.is-leaving)');
+  let recreatedFull = false;
+  if (!state.fullOpen || !state.current) {
+    dismissOverlay(full);
+  } else {
+    if (full && full.dataset.trackId !== trackId) { full.remove(); full = null; }
+    if (!full) {
+      slot.querySelector('#full-player.is-leaving')?.remove();
+      slot.insertAdjacentHTML('beforeend', fullPlayerMarkup(state));
+      full = slot.querySelector('#full-player:not(.is-leaving)');
+      if (full) { full.dataset.trackId = trackId; recreatedFull = true; }
+    }
+    if (full) {
+      const lyrics = full.querySelector('#lyric-viewport');
+      const key = JSON.stringify([state.lyricsLoading, state.lyricsError, state.lyrics]);
+      if (lyrics && full.dataset.lyricsKey !== key) {
+        const previousScroll = lyrics.scrollTop;
+        lyrics.innerHTML = lyricMarkup(state);
+        lyrics.scrollTop = previousScroll;
+        full.dataset.lyricsKey = key;
+      }
+      const showLyrics = state.fullPanel === 'lyrics';
+      full.querySelector('#full-lyric-section')?.classList.toggle('show-on-mobile', showLyrics);
+      // full-player 内只有一个完整播放按钮，更新其图标即可。
+      const fullPlay = full.querySelector('.transport-play-full');
+      if (fullPlay) fullPlay.innerHTML = icon(state.playing ? 'pause' : 'play', 26);
+      full.querySelectorAll('[data-action="toggle-lyrics"]').forEach(button => {
+        const heading = button.closest('.lyric-heading');
+        button.innerHTML = heading ? (showLyrics ? '返回封面' : '歌词') : `${icon('lyric',18)} ${showLyrics ? '返回封面' : '打开歌词'}`;
+      });
+      const favorite = full.querySelector('[data-action="favorite-current"]');
+      favorite?.classList.toggle('is-favorite', isFavorite(state.current));
+      for (const action of ['shuffle', 'repeat']) {
+        const button = full.querySelector(`[data-action="${action}"]`);
+        if (button) {
+          button.classList.toggle('is-active', action === 'shuffle' ? state.shuffle : state.repeat !== 'off');
+          button.innerHTML = icon(action === 'shuffle' ? 'shuffle' : state.repeat === 'one' ? 'repeatOne' : 'repeat', 20);
+        }
+      }
+    }
+  }
+  let queue = slot.querySelector('#queue-overlay:not(.is-leaving)');
+  if (!state.queueOpen) dismissOverlay(queue);
+  else if (!queue) {
+    slot.querySelector('#queue-overlay.is-leaving')?.remove();
+    slot.insertAdjacentHTML('beforeend', `<div id="queue-overlay" class="queue-overlay">${queueMarkup(state)}</div>`);
+  } else {
+    const template = document.createElement('div');
+    template.innerHTML = queueMarkup(state);
+    const current = queue.querySelector('.queue-list');
+    const top = current?.scrollTop || 0;
+    if (current) {
+      current.innerHTML = template.querySelector('.queue-list').innerHTML;
+      current.scrollTop = top;
+    }
+    queue.querySelector('.queue-top h2 small').textContent = String(state.queue.length);
+    const newFooter = template.querySelector('.queue-footer');
+    queue.querySelector('.queue-footer')?.remove();
+    if (newFooter) queue.querySelector('.queue-panel').append(newFooter);
+  }
+  let settings = slot.querySelector('#settings-overlay:not(.is-leaving)');
+  if (!state.settingsOpen) dismissOverlay(settings);
+  else if (!settings) {
+    slot.querySelector('#settings-overlay.is-leaving')?.remove();
+    slot.insertAdjacentHTML('beforeend', settingsMarkup(state));
+  }
+  refreshOverlayLock();
   updateProgress();
-  updateLyricHighlight(previousTrackId !== state.current?.id);
+  updateLyricHighlight(recreatedFull);
 }
 function updatePlayingButtons() {
   renderPlayer();
@@ -179,7 +271,7 @@ async function loadFeatured() {
     if (state.view === 'home') renderPage();
   }
 }
-async function runSearch(query = state.searchQuery) {
+async function runSearch(query = state.searchQuery, { preserveTabs = false } = {}) {
   query = String(query || '').trim();
   if (query !== state.searchQuery) { state.searchSongs = []; state.searchPlaylists = []; }
   state.searchQuery = query;
@@ -188,7 +280,7 @@ async function runSearch(query = state.searchQuery) {
   const controller = new AbortController(); searchController = controller;
   const selectedType = state.searchType;
   state.searchLoading = true; state.searchError = '';
-  renderPage();
+  if (preserveTabs) updateSearchResults(); else renderPage({ restoreFocus: true });
   try {
     if (selectedType === 'songs') state.searchSongs = await api.searchSongs(query, controller.signal);
     else state.searchPlaylists = await api.searchPlaylists(query, controller.signal);
@@ -196,7 +288,7 @@ async function runSearch(query = state.searchQuery) {
     if (controller.signal.aborted) return;
     state.searchError = error.message || '请求失败';
   } finally {
-    if (searchController === controller) { state.searchLoading = false; renderPage(); }
+    if (searchController === controller) { state.searchLoading = false; if (preserveTabs) updateSearchResults(); else renderPage({ restoreFocus: true }); }
   }
 }
 async function openPlaylist(id) {
@@ -253,7 +345,7 @@ async function playIndex(index, { forceRefresh = false } = {}) {
   state.queueIndex=index; state.current=song; state.time=0; state.duration=song.duration||0;
   state.playing=false; state.buffering=true; persist();
   state.recent=pushRecent(state.recent,song); persist();
-  renderPlayer(); renderPage(); renderOverlay();
+  renderPlayer(); if (state.view === 'library') updateLibraryContent(); else if (state.view === 'search') updateSearchResults(); else renderPage(); renderOverlay();
   updateMediaSession(song);
   void loadLyricsFor(song);
   let url;
@@ -312,7 +404,7 @@ function previous() {
 function toggleFavorite(song) {
   if (!song) return;
   state.favorites=isFavorite(song) ? state.favorites.filter(s=>s.id!==song.id) : [song,...state.favorites].slice(0,2000);
-  persist(); renderPage(); renderOverlay();
+  persist(); if (state.view === 'library') updateLibraryContent(); else if (state.view === 'search') updateSearchResults(); else renderPage(); renderOverlay();
   toast(isFavorite(song)?'已加入我喜欢的音乐':'已取消收藏');
 }
 function findSong(context,id) {
@@ -355,7 +447,7 @@ async function deleteLocal(id) {
     state.queue=state.queue.filter(t=>t.id!==id);
     state.queueIndex=Math.min(Math.max(-1,old-removedBefore),state.queue.length-1);
     if (isCurrent) { ++playToken;playController?.abort();audio.pause();audio.removeAttribute('src');audio.load();audioTrackId=null;cleanLocalObjectUrl();state.current=null;state.queueIndex=-1;state.playing=false;state.lyrics=[]; }
-    persist();renderPage();renderPlayer();renderOverlay();toast('本地歌曲已移除。');
+    persist();updateLibraryContent();renderPlayer();renderOverlay();toast('本地歌曲已移除。');
   } catch { toast('移除失败，请检查浏览器存储权限。','error'); }
 }
 function closeTopOverlay() {
@@ -487,7 +579,7 @@ app.addEventListener('error',e=>{
 },true);
 filePicker.addEventListener('change',e=>{void importFiles(e.target.files);e.target.value='';});
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){closeTopOverlay();return;}
+  if(e.key==='Escape'){if (document.querySelector('body > .dialog-overlay:not(.is-leaving)')) return; closeTopOverlay();return;}
   if(['INPUT','TEXTAREA','SELECT','BUTTON'].includes(document.activeElement?.tagName)||document.activeElement?.isContentEditable)return;
   if(e.code==='Space'&&state.current){e.preventDefault();state.playing?pause():resume();}
   if(e.altKey&&e.key==='ArrowRight')next();
