@@ -39,6 +39,8 @@ const audio = document.getElementById('audio-engine');
 const filePicker = document.getElementById('local-file-picker');
 const saved = readPersisted();
 const startupRoute=readRoute(window.history.state);
+const startupHadOverlay=normalizeRoute(window.history.state)?.fullOpen===true;
+let restoringStartup=true;
 const state = {
   ...saved,
   view: 'home', backView: 'home', showEasterEgg: false, navigationMenuOpen:false, playlistTitle:'',
@@ -105,6 +107,7 @@ function applyTheme() {
 }
 function snapshotLocation({push=false,overlay=state.fullOpen?'player':null}={}){
   const route=routeFromState(state,{overlay});
+  if(restoringStartup){saveRoute(route);return;}
   try{
     const entry=historyEntry(route);
     if(push)window.history.pushState(entry,'',window.location.href);
@@ -1110,13 +1113,34 @@ audio.addEventListener('error',()=>{
 });
 
 async function init() {
-  window.history.replaceState({view:'home'}, '', window.location.href);
   app.innerHTML=shellMarkup();
   try {configureApi();} catch {state.settings.apiBase=DEFAULT_API_BASE;state.settings.apiProfiles=[{...STATION_NCM_PRESET,id:BUILTIN_ID,name:'默认音乐接口'}];configureApi();}
   applyTheme();audio.volume=Math.max(0,Math.min(1,state.settings.volume));
+  if(startupRoute){
+    state.view=startupRoute.view==='playlist'?'home':startupRoute.view;
+    state.backView=startupRoute.backView;
+    state.searchQuery=startupRoute.searchQuery;
+    state.searchType=startupRoute.searchType;
+    state.libraryTab=startupRoute.libraryTab;
+    state.selectedLocalPlaylist=startupRoute.selectedLocalPlaylist;
+    state.playlistTitle=startupRoute.playlistTitle;
+  }
   renderHeader();renderPage();renderPlayer();
   try {state.localFiles=await loadLocalFiles();if(state.view==='library')renderPage();}catch{ /* 浏览器隐私模式可能不可用 */ }
   try{await collections.load();}catch(err){toast('歌单存储不可用：'+err.message,'error');}
+  if(startupRoute?.view==='playlist'){
+    await openPlaylist(startupRoute.playlistId,{record:false,providerId:startupRoute.playlistProviderId,
+      namespace:startupRoute.playlistNamespace,backView:startupRoute.backView});
+  }else if(state.view==='search'&&state.searchQuery){
+    void runSearch(state.searchQuery,{preserveTabs:true});
+  }
+  restoreDirectoryTab();
   void loadFeatured();
+  restoringStartup=false;
+  if(startupRoute?.fullOpen&&state.current){
+    // 对 sessionStorage 恢复的播放器新增可回退的一层；原本就在历史中的播放器只需恢复显示。
+    if(!startupHadOverlay)snapshotLocation({overlay:null});
+    openPlayer(startupRoute.fullPanel,{record:!startupHadOverlay});
+  }else snapshotLocation({overlay:null});
 }
 void init().catch(error => {console.error('AimoMusic 启动失败',error);toast('应用初始化失败，请刷新页面重试。','error');});
