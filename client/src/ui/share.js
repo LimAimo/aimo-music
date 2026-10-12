@@ -19,7 +19,7 @@ function cardMarkup(data){
  ${s.fields.artist?`<p>${e(data.subtitle||data.track?.artist||'')}</p>`:''}
  ${s.fields.album&&data.track?.album?`<p class="share-card-album">${e(data.track.album)}</p>`:''}
  ${lyrics}${s.fields.details?stats:''}</div>
- <div class="share-card-foot">${s.fields.logo?'<span class="share-card-brand">♫ <strong>AimoMusic</strong></span>':'<span></span>'}${s.fields.qr?'<span class="share-card-url">打开 AimoMusic ↗</span>':''}</div>
+ <div class="share-card-foot">${s.fields.logo?'<span class="share-card-brand"><img src="/favicon.svg" alt="" width="20" height="20"><strong>AimoMusic</strong></span>':'<span></span>'}${s.fields.qr?'<span class="share-card-url">打开 AimoMusic ↗</span>':''}</div>
  </div></article>`;
 }
 const options=(items,current)=>Object.entries(items).map(([value,label])=>`<option value="${e(value)}" ${value===current?'selected':''}>${e(label)}</option>`).join('');
@@ -73,11 +73,15 @@ export async function cardPng(data){
  if(s.fields.album&&d.track?.album){ctx.fillText(d.track.album.slice(0,45),margin,y);y+=48;}
  if(d.type==='lyrics'){ctx.fillStyle=fg;ctx.font='32px system-ui';for(const item of d.lines||[]){for(const line of wrap(ctx,item,width-2*margin).slice(0,2)){if(y>height-140)break;ctx.fillText(line,margin,y);y+=43;}}}
  if(d.type==='stats'&&s.fields.details){ctx.fillStyle=fg;ctx.font='bold 36px system-ui';for(const item of d.stats||[]){if(y>height-150)break;ctx.fillText(item.label+': '+item.value,margin,y);y+=58;}}
- if(s.fields.logo){ctx.fillStyle=fg;ctx.font='bold 33px system-ui';ctx.fillText('♫ AimoMusic',margin,height-68);}
+ if(s.fields.logo){
+  const logo=await coverImage(location.origin+'/favicon.svg');
+  if(logo){ctx.drawImage(logo,margin,height-106,42,42);logo.close?.();}
+  ctx.fillStyle=fg;ctx.font='bold 33px system-ui';ctx.fillText('AimoMusic',margin+55,height-73);
+ }
  if(s.fields.qr){ctx.fillStyle=sub;ctx.font='26px system-ui';ctx.textAlign='right';ctx.fillText('打开 AimoMusic ↗',width-margin,height-72);ctx.textAlign='left';}
  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw Error('PNG 导出失败');return blob;
 }
-export function installShareUi({app,toast,onOpenContent}){
+export function installShareUi({app,toast,onOpenContent,confirmPublish=async()=>true}){
  let draft=null,overlay=null;
  const rerender=()=>{const p=overlay?.querySelector('#share-preview');if(p)p.innerHTML=cardMarkup(draft);};
  const close=()=>{overlay?.remove();overlay=null;draft=null;};
@@ -87,9 +91,12 @@ export function installShareUi({app,toast,onOpenContent}){
  const copy=async()=>{await navigator.clipboard.writeText(openUrl());toast('分享链接已复制');};
  const act=async action=>{
   if(action==='close'){close();return;}
-  if(action==='copy'){await copy();return;}
+  if(action==='copy'){if(await confirmPublish(draft))await copy();return;}
   if(action==='save'){await download();toast('图片已保存');return;}
-  if(action==='native'){const url=openUrl();if(navigator.share)await navigator.share({title:draft.title||'AimoMusic 分享',url});else await copy();}
+  if(action==='native'){
+   if(!await confirmPublish(draft))return;
+   const url=openUrl();if(navigator.share)await navigator.share({title:draft.title||'AimoMusic 分享',url});else await copy();
+  }
  };
  document.addEventListener('click',e=>{
   const button=e.target.closest('[data-share-action]');if(!button)return;e.preventDefault();void act(button.dataset.shareAction).catch(err=>{if(err.name!=='AbortError')toast(err.message||'分享失败','error');});
