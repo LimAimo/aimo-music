@@ -1,3 +1,5 @@
+import { networkLog, installNetworkDebug } from './api/network-debug.js';
+import { versionInfo } from './version.js';
 import { MusicApi, DEFAULT_API_BASE } from './api/music.js';
 import { ManagedMusicApi, CustomMusicApi, BUILTIN_ID, STATION_NCM_PRESET, EXAMPLE_RULES, validateProfile, importProfiles, exportProfiles, MAX_PROFILES, trackIdentity } from './api/providers.js';
 import { parseLrc, activeLyricIndex, formatTime } from './core/lyrics.js';
@@ -15,6 +17,7 @@ const app = document.getElementById('app');
 let devTapCount=0;
 let developerMode=sessionStorage.getItem('aimo-dev-mode')==='1';
 globalThis.__AIMO_DEV__=developerMode;
+installNetworkDebug();
 const audio = document.getElementById('audio-engine');
 const filePicker = document.getElementById('local-file-picker');
 const saved = readPersisted();
@@ -558,8 +561,11 @@ function handleAction(button) {
     }
     case 'settings': state.settingsOpen=true;state.apiView='settings';renderOverlay();document.getElementById('theme-setting')?.focus();break;
     case 'close-settings':state.settingsOpen=false;renderOverlay();break;
-    case 'developer-tap': {devTapCount++;if(devTapCount>=5){developerMode=true;globalThis.__AIMO_DEV__=true;sessionStorage.setItem('aimo-dev-mode','1');toast('开发者模式已启用：错误将显示原始网络异常');renderOverlay();}break;}
-    case 'developer-off': {developerMode=false;globalThis.__AIMO_DEV__=false;sessionStorage.removeItem('aimo-dev-mode');devTapCount=0;renderOverlay();break;}
+    case 'developer-tap': {devTapCount++;if(devTapCount>=5){developerMode=true;globalThis.__AIMO_DEV__=true;sessionStorage.setItem('aimo-dev-mode','1');toast('开发者模式已启用');document.getElementById('settings-overlay')?.remove();renderOverlay();}break;}
+    case 'developer-export': {const blob=new Blob([JSON.stringify({version:versionInfo,origin:location.origin,entries:networkLog.entries},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='aimomusic-network-report.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);break;}
+    case 'developer-clear': {networkLog.entries.length=0;document.getElementById('settings-overlay')?.remove();renderOverlay();break;}
+    case 'developer-refresh': {document.getElementById('settings-overlay')?.remove();renderOverlay();break;}
+    case 'developer-off': {developerMode=false;globalThis.__AIMO_DEV__=false;sessionStorage.removeItem('aimo-dev-mode');devTapCount=0;document.getElementById('settings-overlay')?.remove();renderOverlay();break;}
     case 'open-api-manager':openApiView('manager');break;
     case 'back-to-settings':openApiView('settings');break;
     case 'back-api-manager':openApiView('manager');break;
