@@ -1,6 +1,21 @@
 // Stale-while-revalidate with bounded retries. Audio requests are intentionally excluded.
 const NAME='aimo-network-cache',STORE='entries';
 const pending=new Map();
+const waiting=[];let running=0;
+function flush(){
+ while(running<4&&waiting.length){
+  const job=waiting.shift();running++;
+  Promise.resolve().then(job.work).then(job.resolve,job.reject).finally(()=>{running--;flush();});
+ }
+}
+function scheduled(key,load,signal){
+ const current=pending.get(key);
+ if(current&&!current.signal?.aborted)return current.promise;
+ const promise=new Promise((resolve,reject)=>{waiting.push({work:()=>smartRetry(load,{signal}),resolve,reject});flush();});
+ const item={promise,signal};pending.set(key,item);
+ void promise.finally(()=>{if(pending.get(key)===item)pending.delete(key);}).catch(()=>{});
+ return promise;
+}
 function open(){return new Promise((ok,fail)=>{const r=indexedDB.open(NAME,1);r.onupgradeneeded=()=>r.result.createObjectStore(STORE,{keyPath:'key'});r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error);});}
 async function cache(key,write){
  try{const db=await open();return await new Promise((ok,fail)=>{const tx=db.transaction(STORE,write?'readwrite':'readonly');const req=write?tx.objectStore(STORE).put({key,at:Date.now(),value:write}):tx.objectStore(STORE).get(key);tx.oncomplete=()=>{db.close();ok(req.result);};tx.onerror=()=>{db.close();fail(tx.error);};});}catch{return null;}
@@ -24,8 +39,7 @@ export async function cachedResource(key,load,{signal,onFresh,maxAgeDays=30}={})
  const saved=await cache(key);
  const valid=saved&&Date.now()-saved.at<maxAgeDays*86400000;
  const getFresh=async()=>{
-  const promise=smartRetry(load,{signal});
-  const value=await promise;
+  const value=await scheduled(key,load,signal);
   await cache(key,value);
   return value;
  };
@@ -33,9 +47,7 @@ export async function cachedResource(key,load,{signal,onFresh,maxAgeDays=30}={})
   const current=saved.value;
   // A stale response is immediately usable, while refresh runs in the background.
   if(typeof navigator==='undefined'||navigator.onLine!==false){
-   const refresh=pending.get(key)||getFresh().finally(()=>pending.delete(key));
-   pending.set(key,refresh);
-   void refresh.then(value=>{if(!isAborted(signal)&&JSON.stringify(value)!==JSON.stringify(current))onFresh?.(value);}).catch(()=>{});
+   void getFresh().then(value=>{if(!isAborted(signal)&&JSON.stringify(value)!==JSON.stringify(current))onFresh?.(value);}).catch(()=>{});
   }
   return {value:current,cached:true};
  }
