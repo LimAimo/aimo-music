@@ -54,7 +54,7 @@ window.__AIMO_BASE__=routeBase;
 const directRoute=parseRoute(window.location.href,routeBase);
 const priorRoute=readRoute(window.history.state);
 const startupRoute=directRoute?.view==='share'?null:directRoute?normalizeRoute({...priorRoute,...directRoute,
-  ...(directRoute.directSong?{view:priorRoute?.view||'home',fullOpen:true,fullPanel:directRoute.fullPanel}:{}),
+  ...(directRoute.directSong?{view:'home',backView:'home',fullOpen:true,fullPanel:directRoute.fullPanel}:{}),
   ...(directRoute.view==='playlist'?{playlistProviderId:null}:{}),
 }):priorRoute;
 const startupHadOverlay=normalizeRoute(window.history.state)?.fullOpen===true;
