@@ -51,6 +51,7 @@ shuffleHistory.reset(state.queue, state.queueIndex);
 let activeDialog = null;
 let focusBeforeOverlay = null;
 let searchVersion = 0;
+let pageTransitionDirection = 0;
 let easterSequence = 0;
 const easterPath = ['home','library','search','home'];
 
@@ -87,7 +88,7 @@ function renderHeader() {
   // 固定顶栏只装配一次。销毁并重建它会打断正在进行的滑块动画。
   if (!slot.firstElementChild) {
     slot.innerHTML = header(tab, currentTheme());
-    bindHeader = bindSegmentedControl(slot.querySelector('.segmented'), value => navigate(value));
+    bindHeader = bindSegmentedControl(slot.querySelector('.segmented'), value => navigate(value), { draggable: false });
   } else {
     bindHeader?.setValue?.(tab);
   }
@@ -123,6 +124,11 @@ function renderPage({ restoreFocus = false } = {}) {
     : state.view === 'library' ? libraryMarkup(state)
     : state.view === 'playlist' ? playlistMarkup(state)
     : homeMarkup(state);
+  const page = main.querySelector('.page');
+  if (page && pageTransitionDirection) {
+    page.classList.add(pageTransitionDirection > 0 ? 'page-enter-from-right' : 'page-enter-from-left');
+    pageTransitionDirection = 0;
+  }
   const segmented = main.querySelector('.segmented');
   if (segmented) bindPage = bindSegmentedControl(segmented, value => {
     if (state.view === 'search' && value !== state.searchType) {
@@ -340,6 +346,10 @@ function navigate(view, { record = true } = {}) {
     if (easterSequence === easterPath.length - 1) {state.showEasterEgg = true; easterSequence = -1;}
     else state.showEasterEgg = false;
   } else if (!record) { easterSequence = 0; state.showEasterEgg = false; }
+  const navigationOrder = ['home','search','library'];
+  const fromIndex = navigationOrder.indexOf(state.view);
+  const toIndex = navigationOrder.indexOf(view);
+  pageTransitionDirection = fromIndex >= 0 && toIndex >= 0 ? Math.sign(toIndex - fromIndex) : 0;
   state.view = view;
   if (record) window.history.pushState({view}, '', window.location.href);
   searchController?.abort();

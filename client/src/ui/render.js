@@ -20,7 +20,7 @@ export function albumArt(song, size = 'medium', extra = '') {
 export function header(view, theme) {
   return `<header class="app-header" id="app-header"><div class="header-inner">
       
-      ${segmentedMarkup([{ value: 'home', label: '发现' }, { value: 'library', label: '音乐库' }, { value: 'search', label: '搜索' }], view === 'playlist' ? 'home' : view, 'nav-segmented')}
+      ${segmentedMarkup([{ value: 'home', label: '发现' }, { value: 'search', label: '搜索' }, { value: 'library', label: '音乐库' }], view === 'playlist' ? 'home' : view, 'nav-segmented')}
       <div class="header-actions"><button class="button button-quiet desktop-upload" data-action="import">${icon('upload', 17)}<span>导入音乐</span></button><button class="icon-button" data-action="settings" aria-label="设置">${icon('settings', 19)}</button></div>
     </div></header>`;
 }
@@ -62,7 +62,7 @@ export function skeletonRows(count = 7) {
 
 export function homeRecentMarkup(state) {
   const recent = state.recent.slice(0, 5);
-  return `<div class="section-heading"><div><span class="eyebrow">THE SOUND YOU KEEP</span><h2>最近聆听</h2></div>${recent.length ? `<button class="text-action" data-action="navigate" data-view="library">全部记录 ${icon('chevronRight', 16)}</button>` : ''}</div>${recent.length ? rowsMarkup(recent.map(t => ({...t, favorite: state.favorites.some(f=> (f.source==='local'?'local':f.providerNamespace||'netease') === (t.source==='local'?'local':t.providerNamespace||'netease') && f.id===t.id)})), { context:'recent',active:false,playing:false }) : emptyState('还没有播放记录','找到喜欢的歌曲，它会出现在这里。',`<button class="text-action" data-action="navigate" data-view="search">去搜索 ${icon('chevronRight', 16)}</button>`)}`;
+  return `<div class="section-heading"><div><h2>最近聆听</h2></div>${recent.length ? `<button class="text-action" data-action="navigate" data-view="library">全部记录 ${icon('chevronRight', 16)}</button>` : ''}</div>${recent.length ? rowsMarkup(recent.map(t => ({...t, favorite: state.favorites.some(f=> (f.source==='local'?'local':f.providerNamespace||'netease') === (t.source==='local'?'local':t.providerNamespace||'netease') && f.id===t.id)})), { context:'recent',active:false,playing:false }) : emptyState('还没有播放记录','找到喜欢的歌曲，它会出现在这里。',`<button class="text-action" data-action="navigate" data-view="search">去搜索 ${icon('chevronRight', 16)}</button>`)}`;
 }
 
 export function featuredMarkup(state) {
@@ -71,7 +71,7 @@ export function featuredMarkup(state) {
 
 export function homeMarkup(state) {
   return `<div class="page page-home">${state.showEasterEgg ? `<div class="easter-record" aria-label="隐藏唱片彩蛋">${heroMarkup(state.current)}</div>` : ''}<div class="home-columns"><section class="home-main">${homeRecentMarkup(state)}</section>
-  <section class="home-discover"><div class="section-heading"><div><span class="eyebrow">FIND SOMETHING NEW</span><h2>听点新的</h2></div></div><div id="featured-playlists">${featuredMarkup(state)}</div></section></div></div>`;
+  <section class="home-discover"><div class="section-heading"><div><h2>听点新的</h2></div></div><div id="featured-playlists">${featuredMarkup(state)}</div></section></div></div>`;
 }
 
 export function searchResultsMarkup(state) {
@@ -82,7 +82,7 @@ export function searchResultsMarkup(state) {
 
 export function searchMarkup(state) {
   const keyword = e(state.searchQuery);
-  return `<div class="page page-search"><div class="page-intro"><span class="eyebrow">EXPLORE / MUSIC</span><h1>搜索音乐</h1></div><form id="search-form" class="search-form"><label for="search-input" class="sr-only">搜索歌曲、歌手或歌单</label>${icon('search', 22)}<input id="search-input" name="q" type="search" enterkeyhint="search" maxlength="100" autocomplete="off" placeholder="歌曲、歌手、歌单……" value="${keyword}" required><button class="search-submit" type="submit">搜索 ${icon('arrowUp',16)}</button></form>
+  return `<div class="page page-search"><div class="page-intro"><h1>搜索音乐</h1></div><form id="search-form" class="search-form"><label for="search-input" class="sr-only">搜索歌曲、歌手或歌单</label>${icon('search', 22)}<input id="search-input" name="q" type="search" enterkeyhint="search" maxlength="100" autocomplete="off" placeholder="歌曲、歌手、歌单……" value="${keyword}" required><button class="search-submit" type="submit">搜索 ${icon('arrowUp',16)}</button></form>
   ${state.searchQuery ? `<div class="search-tabs"><div class="search-meta">关于「${keyword}」的结果</div>${segmentedMarkup([{value:'songs',label:'歌曲'},{value:'playlists',label:'歌单'}],state.searchType,'search-segmented')}</div>` : `<div class="search-suggestions"><span class="eyebrow">从熟悉的名字开始</span><div class="suggestion-chips">${['周杰伦','陈奕迅','Taylor Swift','RADWIMPS'].map(name=>`<button data-action="suggest-search" data-query="${e(name)}">${e(name)} ${icon('chevronRight',14)}</button>`).join('')}</div></div>`}
   <div class="search-results" id="search-results">${searchResultsMarkup(state)}</div></div>`;
 }
@@ -94,7 +94,7 @@ export function libraryContentMarkup(state) {
 }
 
 export function libraryMarkup(state) {
-  return `<div class="page page-library"><div class="page-intro library-intro"><div><span class="eyebrow">YOUR PERSONAL COLLECTION</span><h1>你的音乐库</h1><p>喜欢的音乐，都在这里。</p></div><button class="button button-quiet" data-action="import">${icon('upload',17)} 导入音乐</button></div>
+  return `<div class="page page-library"><div class="page-intro library-intro"><div><h1>你的音乐库</h1><p>喜欢的音乐，都在这里。</p></div><button class="button button-quiet" data-action="import">${icon('upload',17)} 导入音乐</button></div>
   <div class="library-header">${segmentedMarkup([{value:'favorites',label:`我喜欢的 · ${state.favorites.length}`},{value:'recent',label:'最近播放'},{value:'local',label:'本地歌曲'}],state.libraryTab,'library-segmented')}</div>
   <div class="library-content" id="library-content" aria-live="polite">${libraryContentMarkup(state)}</div>
   <p class="library-footnote">收藏和播放记录只保存在当前浏览器，不会上传到音乐 API。清除浏览器网站数据会删除本地收藏及已导入的音频文件。</p></div>`;
@@ -131,7 +131,7 @@ export function fullPlayerMarkup(state) {
 export function lyricMarkup(state) {
   if (state.lyricsLoading) return `<div class="lyric-placeholder"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>`;
   if (state.lyricsError) return `<div class="lyric-empty">${e(state.lyricsError)}</div>`;
-  if (!state.lyrics.length) return `<div class="lyric-empty">这首歌曲暂时没有同步歌词。<br>让音乐自己说话。</div>`;
+  if (!state.lyrics.length) return `<div class="lyric-empty">这首歌曲暂时没有同步歌词。</div>`;
   return `<div class="lyric-lines">${state.lyrics.map((line,i)=>`<button type="button" class="lyric-line ${i===state.activeLyric?'is-current':''}" data-action="seek-lyric" data-time="${line.time}" data-lyric-index="${i}"><span>${e(line.text)}</span>${line.translation?`<small>${e(line.translation)}</small>`:''}</button>`).join('')}</div>`;
 }
 

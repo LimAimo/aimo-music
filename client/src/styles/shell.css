@@ -114,3 +114,16 @@ body.overlay-open, body.modal-open { overflow: hidden; }
 .nav-segmented{justify-self:auto;flex:none;border-radius:9px;padding:2px;gap:1px}
 .nav-segmented .seg-item{min-height:30px;padding:0 15px;font-size:12px;border-radius:6px}
 .nav-segmented .seg-indicator{border-radius:6px}
+
+/* v0.2.5: 更轻薄的固定顶栏与具有方向感的页面切换 */
+.app-shell{--app-header-height:64px}
+.header-inner{padding-inline:24px}
+.nav-segmented{padding:2px;border-radius:8px}
+.nav-segmented .seg-item{min-height:28px;padding-inline:13px;font-size:12px;border-radius:5px}
+.nav-segmented .seg-indicator{border-radius:5px}
+.main-view{padding-top:calc(var(--app-header-height) + 24px)}
+.page.page-enter-from-right{animation:page-slide-from-right .3s var(--ease) both}
+.page.page-enter-from-left{animation:page-slide-from-left .3s var(--ease) both}
+@keyframes page-slide-from-right{from{opacity:.45;transform:translateX(22px)}to{opacity:1;transform:translateX(0)}}
+@keyframes page-slide-from-left{from{opacity:.45;transform:translateX(-22px)}to{opacity:1;transform:translateX(0)}}
+@media(prefers-reduced-motion:reduce){.page.page-enter-from-right,.page.page-enter-from-left{animation:none}}

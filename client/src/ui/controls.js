@@ -2,7 +2,7 @@
  * 全站唯一 N 段式控制器：保持 DOM，不通过重渲染切换选中态。
  * 指示器跟手插值、松手吸附；按钮点击与外部导航均使用同一套 260ms 动画。
  */
-export function bindSegmentedControl(root, onSelect) {
+export function bindSegmentedControl(root, onSelect, { draggable = true } = {}) {
   if (!root) return () => {};
   const indicator = root.querySelector('.seg-indicator');
   const buttons = [...root.querySelectorAll('.seg-item')];
@@ -161,10 +161,10 @@ export function bindSegmentedControl(root, onSelect) {
     }) : null;
   observer?.observe(root);
   buttons.forEach(button => observer?.observe(button));
-  root.addEventListener('pointerdown', onPointerDown);
-  root.addEventListener('pointermove', onPointerMove);
-  root.addEventListener('pointerup', onPointerUp);
-  root.addEventListener('pointercancel', onPointerCancel);
+  if (draggable) root.addEventListener('pointerdown', onPointerDown);
+  if (draggable) root.addEventListener('pointermove', onPointerMove);
+  if (draggable) root.addEventListener('pointerup', onPointerUp);
+  if (draggable) root.addEventListener('pointercancel', onPointerCancel);
   root.addEventListener('click', onClick);
   root.addEventListener('keydown', onKeyDown);
   indicator.addEventListener('transitionend', stopAnimation);
