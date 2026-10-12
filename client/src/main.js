@@ -6,6 +6,7 @@ import { mountCollections } from './ui/collections-controller.js';
 import './ui/collections.css';
 import { installKeyboardShortcuts } from './core/keyboard.js';
 import { networkLog, installNetworkDebug } from './api/network-debug.js';
+import {cachedResource,smartRetry,isOffline} from './api/resilience.js';
 import { versionInfo } from './version.js';
 import { MusicApi, DEFAULT_API_BASE } from './api/music.js';
 import { ManagedMusicApi, CustomMusicApi, BUILTIN_ID, STATION_NCM_PRESET, EXAMPLE_RULES, validateProfile, importProfiles, exportProfiles, MAX_PROFILES, trackIdentity } from './api/providers.js';
@@ -413,7 +414,8 @@ async function loadFeatured() {
   state.featuredLoading = true;
   updateFeatured();
   try {
-    state.featured = await api.discoverPlaylists();state.apiFallback=api.lastFallback;
+    const data=await cachedResource('discover:'+api.activeId,()=>api.discoverPlaylists(),{onFresh:updated=>{if(!state.featuredLoading){state.featured=updated;updateFeatured();}}});
+    state.featured=data.value;state.apiFallback=api.lastFallback;
     state.featuredFailed = false;
   } catch {
     // 首页推荐不可用不是致命错误，搜索与本地播放器仍可使用。
@@ -437,8 +439,8 @@ async function runSearch(query = state.searchQuery, { preserveTabs = false } = {
   if (preserveTabs) updateSearchResults(); else renderPage({ restoreFocus: true });
   try {
     const results = selectedType === 'songs'
-      ? await api.searchSongs(query, controller.signal)
-      : await api.searchPlaylists(query, controller.signal);
+      ? (await cachedResource('search:songs:'+api.activeId+':'+query,()=>api.searchSongs(query,controller.signal),{signal:controller.signal,onFresh:items=>{if(version===searchVersion&&!controller.signal.aborted){state.searchSongs=items;updateSearchResults();}}})).value
+      : (await cachedResource('search:playlists:'+api.activeId+':'+query,()=>api.searchPlaylists(query,controller.signal),{signal:controller.signal,onFresh:items=>{if(version===searchVersion&&!controller.signal.aborted){state.searchPlaylists=items;updateSearchResults();}}})).value;
     if (version !== searchVersion || controller.signal.aborted) return;
     state.apiFallback=api.lastFallback;
     if (selectedType === 'songs') state.searchSongs = results;
@@ -465,7 +467,10 @@ async function openPlaylist(id, { record = true, providerId = null, namespace = 
     ? sharedPlaylistTransition({source:sourceElement.querySelector('.album-art'),sourceTitle:sourceElement.querySelector('.playlist-title'),render:()=>{renderHeader();renderPage();window.scrollTo({top:0,behavior:'instant'});},target:()=>document.querySelector('.page-playlist .shared-cover-target'),targetTitle:()=>document.querySelector('.page-playlist .shared-title-target')})
     : (renderHeader(),renderPage(),window.scrollTo({top:0,behavior:'instant'}),Promise.resolve());
   // 网络加载与动画并行，但加载完成后等转场交接完毕再重绘。
-  try { const result=await api.playlistDetail(id,controller.signal,state.playlistProviderId,state.playlistNamespace);if(!controller.signal.aborted){state.playlist=result;state.apiFallback=api.lastFallback;} }
+  try { const key=['playlist',api.activeId,id,state.playlistProviderId,state.playlistNamespace].join(':');
+    const result=(await cachedResource(key,()=>api.playlistDetail(id,controller.signal,state.playlistProviderId,state.playlistNamespace),
+      {signal:controller.signal,onFresh:updated=>{if(playlistController===controller&&!controller.signal.aborted&&state.view==='playlist'){state.playlist=updated;renderPage();}}})).value;
+    if(!controller.signal.aborted){state.playlist=result;state.apiFallback=api.lastFallback;} }
   catch (err) { if (controller.signal.aborted) return; state.playlistError=err.message || '网络请求失败'; }
   finally { await transition; if (playlistController===controller && !controller.signal.aborted && state.view==='playlist') {state.playlistLoading=false;renderPage();} }
 }
@@ -475,7 +480,7 @@ async function loadLyricsFor(song) {
   state.lyricsLoading=true; renderOverlay();
   const token=playToken;
   try {
-    const data=await api.lyrics(song.id,playController?.signal,song.providerId,song.providerNamespace);
+    const data=await smartRetry(()=>api.lyrics(song.id,playController?.signal,song.providerId,song.providerNamespace),{signal:playController?.signal});
     if (token!==playToken) return;
     state.lyrics=parseLrc(data.original,data.translation);
   } catch (error) {
@@ -887,6 +892,13 @@ document.addEventListener('keydown',e=>{
   if(e.altKey&&e.key==='ArrowRight')next();
   if(e.altKey&&e.key==='ArrowLeft')previous();
 });
+window.addEventListener('online',()=>{
+  toast('网络已恢复，正在更新在线内容');
+  if(state.view==='home')void loadFeatured();
+  if(state.view==='search'&&state.searchQuery)void runSearch(state.searchQuery,{preserveTabs:true});
+  if(state.view==='playlist'&&state.playlistId)void openPlaylist(state.playlistId,{record:false,providerId:state.playlistProviderId,namespace:state.playlistNamespace});
+});
+window.addEventListener('offline',()=>toast('网络已断开，仍可浏览缓存内容和本地歌曲'));
 window.addEventListener('popstate', event => {
   const page=event.state;
   if (page?.view === 'playlist' && page.id) void openPlaylist(page.id, {record:false,providerId:page.providerId||null,namespace:page.namespace||null});
