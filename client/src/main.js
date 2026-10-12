@@ -564,6 +564,7 @@ function handleAction(button) {
     case 'developer-tap': {devTapCount++;if(devTapCount>=5){developerMode=true;globalThis.__AIMO_DEV__=true;sessionStorage.setItem('aimo-dev-mode','1');toast('开发者模式已启用');document.getElementById('settings-overlay')?.remove();renderOverlay();}break;}
     case 'developer-export': {const blob=new Blob([JSON.stringify({version:versionInfo,origin:location.origin,entries:networkLog.entries},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='aimomusic-network-report.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);break;}
     case 'developer-clear': {networkLog.entries.length=0;document.getElementById('settings-overlay')?.remove();renderOverlay();break;}
+    case 'developer-fullscreen': {document.getElementById('settings-overlay')?.classList.toggle('dev-fullscreen');break;}
     case 'developer-refresh': {document.getElementById('settings-overlay')?.remove();renderOverlay();break;}
     case 'developer-off': {developerMode=false;globalThis.__AIMO_DEV__=false;sessionStorage.removeItem('aimo-dev-mode');devTapCount=0;document.getElementById('settings-overlay')?.remove();renderOverlay();break;}
     case 'open-api-manager':openApiView('manager');break;

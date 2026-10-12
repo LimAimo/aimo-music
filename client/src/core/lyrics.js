@@ -13,7 +13,7 @@ export function readLrc(source = '') {
   if (typeof source !== 'string') return [];
   const offset = Number(source.match(/^\[offset:([+-]?\d+)\]/mi)?.[1] || 0) / 1000;
   const rows = [];
-  for (const line of source.replace(/\r/g, '').split('\n')) {
+  for (const line of source.replace(/\r/g, '').replace(/\\r\\n|\\n|\\r/g, '\n').split('\n')) {
     const tags = [...line.matchAll(/\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g)];
     if (!tags.length) continue;
     const text = line.replace(/\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\]/g, '').trim();

@@ -80,3 +80,8 @@ input[type="range"]:hover::-moz-range-thumb, input[type="range"]:focus-visible::
 .transport-play.is-buffering { position: relative; }
 .transport-play.is-buffering::after { content: ''; position: absolute; inset: 3px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: loading-ring .8s linear infinite; pointer-events: none; }
 @keyframes loading-ring { to { transform: rotate(360deg); } }
+
+/* 播放器进度条：移动端不使用 background-clip，避免填充色和滑块错位 */
+#full-seek,#seek-bar{display:block;box-sizing:border-box;height:6px;min-height:6px;padding:0;margin:12px 0;background-clip:border-box;border-radius:999px;touch-action:pan-y}
+#full-seek::-webkit-slider-thumb,#seek-bar::-webkit-slider-thumb{width:16px;height:16px;opacity:1;background:var(--text-primary);box-shadow:0 0 0 3px var(--bg)}
+#full-seek::-moz-range-thumb,#seek-bar::-moz-range-thumb{width:16px;height:16px;opacity:1;background:var(--text-primary)}

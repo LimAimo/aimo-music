@@ -145,3 +145,5 @@
   .search-form input { font-size: 16px; }
   .search-submit { font-size: 12px; padding-inline: 9px; }
 }
+
+@media(max-width:767px){.full-content:has(.full-lyric-section.show-on-mobile){gap:18px;padding-bottom:32px}.full-content:has(.full-lyric-section.show-on-mobile) .full-art-section{margin:0 auto;width:100%}.full-lyric-section.show-on-mobile{min-height:0}.lyric-heading{padding:8px 0 12px}.lyric-viewport{min-height:38vh;max-height:52vh;padding:12vh 0 18vh}.lyric-lines{gap:19px}.lyric-line{font-size:clamp(17px,4.4vw,22px);line-height:1.65}}

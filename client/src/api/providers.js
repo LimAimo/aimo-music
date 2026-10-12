@@ -217,8 +217,8 @@ export class StationMusicApi extends MusicApi {
     const data=await this.get('lyric',{id},signal);
     if (!Array.isArray(data.lines)) throw Error('音乐 API 歌词响应结构无效');
     const stamp=t=>{const ms=Math.max(0,Number(t)||0);const minutes=Math.floor(ms/60000);const seconds=Math.floor(ms%60000/1000);return String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0')+'.'+String(ms%1000).padStart(3,'0');};
-    return {original:data.lines.map(l=>'['+stamp(l.t)+']'+String(l.txt||'')).join('\\n'),
-      translation:data.lines.filter(l=>l.trans).map(l=>'['+stamp(l.t)+']'+String(l.trans)).join('\\n')};
+    return {original:data.lines.map(l=>'['+stamp(l.t)+']'+String(l.txt||'')).join('\n'),
+      translation:data.lines.filter(l=>l.trans).map(l=>'['+stamp(l.t)+']'+String(l.trans)).join('\n')};
   }
   async audioUrl(id,quality='standard',signal) {
     const data=await this.get('song/url/v1',{id,level:quality},signal);

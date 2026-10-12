@@ -74,3 +74,10 @@
 @media (max-width: 860px) {
   .queue-overlay.is-leaving .queue-panel { animation: sheet-out .3s cubic-bezier(.4,0,1,1) both; }
 }
+
+/* 歌词：按行展示、控制行宽与滚动节奏 */
+.lyric-lines{gap:22px;width:100%;max-width:680px}
+.lyric-line{display:block;width:100%;max-width:100%;font-family:var(--font-sans);font-size:clamp(17px,2vw,25px);line-height:1.7;letter-spacing:0;white-space:normal;overflow-wrap:anywhere;word-break:normal;transform:none}
+.lyric-line.is-current{transform:none;color:var(--text-primary);font-weight:650}
+.lyric-viewport{scrollbar-width:none}
+.lyric-viewport::-webkit-scrollbar{display:none}
