@@ -5,7 +5,7 @@ import {sanitizeSettings} from '../client/src/core/storage.js';
 import {settingsMarkup} from '../client/src/ui/render.js';
 const read=p=>readFileSync(new URL(p,import.meta.url),'utf8');
 test('迷你播放器通透度有默认值、越界处理和持久化入口',()=>{
- assert.equal(sanitizeSettings({}).miniTransparency,55);
+ assert.equal(sanitizeSettings({}).miniTransparency,15);
  assert.equal(sanitizeSettings({miniTransparency:0}).miniTransparency,0);
  assert.equal(sanitizeSettings({miniTransparency:100}).miniTransparency,100);
  assert.equal(sanitizeSettings({miniTransparency:200}).miniTransparency,100);
