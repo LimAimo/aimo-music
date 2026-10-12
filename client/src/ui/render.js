@@ -92,10 +92,16 @@ export function searchMarkup(state) {
 export function libraryContentMarkup(state) {
   if(state.libraryTab==='playlists')return collectionsMarkup(state);
   if(state.libraryTab==='history') {
+    let previousDay='';
     const rows=(state.historyEntries||[]).map(entry=>{
       const song=entry.track||{};
       const time=new Date(entry.playedAt);
-      return `<button class="history-entry" data-action="history-play" data-id="${e(entry.entryId)}">${albumArt(song,'row')}<span class="history-entry-text"><strong>${e(song.title||'未知歌曲')}</strong><small>${e(song.artist||'未知歌手')} · ${e(time.toLocaleString('zh-CN'))}</small></span>${icon('play',18)}</button>`;
+      const day=`${time.getFullYear()}-${String(time.getMonth()+1).padStart(2,'0')}-${String(time.getDate()).padStart(2,'0')}`;
+      const today=new Date(),yesterday=new Date(today);yesterday.setDate(today.getDate()-1);
+      const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const group=day===previousDay?'':`<h3 class="history-day-heading">${day===key(today)?'今天':day===key(yesterday)?'昨天':time.toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric'})}</h3>`;
+      previousDay=day;
+      return group+`<button class="history-entry" data-action="history-play" data-id="${e(entry.entryId)}">${albumArt(song,'row')}<span class="history-entry-text"><strong>${e(song.title||'未知歌曲')}</strong><small>${e(song.artist||'未知歌手')} · ${e(time.toLocaleString('zh-CN'))}</small></span>${icon('play',18)}</button>`;
     }).join('');
     return `<div class="history-tools"><span>完整播放历史 · ${state.historyEntries.length} 条已加载</span><button class="button button-quiet" data-action="history-clear">清空历史</button></div>${rows||'<div class="empty-state"><h2>还没有播放历史</h2><p>开始播放歌曲后会自动记录。</p></div>'}${state.historyHasMore?'<button class="button button-secondary history-more" data-action="history-more">加载更多</button>':''}${state.historyLoading?'<p class="history-loading">正在读取历史…</p>':''}`;
   }

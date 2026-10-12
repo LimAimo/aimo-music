@@ -603,7 +603,10 @@ function previous() {
 function toggleFavorite(song) {
   if (!song) return;
   state.favorites=isFavorite(song) ? state.favorites.filter(s=>trackIdentity(s)!==trackIdentity(song)) : [song,...state.favorites].slice(0,2000);
-  persist(); if (state.view === 'library') updateLibraryContent(); else refreshRows(); renderOverlay();
+  persist();
+  if(state.view==='library'&&state.libraryTab==='playlists')void collections.refresh();
+  else if (state.view === 'library') updateLibraryContent(); else refreshRows();
+  renderOverlay();
   toast(isFavorite(song)?'已加入我喜欢的音乐':'已取消收藏');
 }
 function findSong(context,id,namespace) {
@@ -665,7 +668,7 @@ function handleAction(button) {
     case 'history-more':void loadHistoryPage();break;
     case 'history-clear':void (async()=>{
       if(!await showConfirmDialog('清空播放历史','这将永久删除当前浏览器中的全部播放历史，不影响收藏和歌单。',{confirm:'清空',destructive:true}))return;
-      try{await clearPlayHistory();state.historyEntries=[];state.historyHasMore=false;updateLibraryContent();toast('播放历史已清空');}
+      try{await clearPlayHistory();state.historyEntries=[];state.historyHasMore=false;updateLibraryContent();if(state.view==='library'&&state.libraryTab==='playlists')await collections.refresh();toast('播放历史已清空');}
       catch(e){toast(e.message,'error');}
     })();break;
     case 'history-play':{
@@ -964,7 +967,9 @@ audio.addEventListener('playing',()=>{
   state.buffering=false;refreshBuffering();
   if (state.current && audioTrackId === state.current.id && historyRecordedToken !== playToken) {
     historyRecordedToken = playToken;
-    void recordPlayHistory(state.current).catch(() => {});
+    void recordPlayHistory(state.current).then(()=>{
+      if(state.view==='library'&&state.libraryTab==='playlists')return collections.refresh();
+    }).catch(()=>{});
   }
   if (state.current && audioTrackId===state.current.id) {
     state.recent=pushRecent(state.recent,state.current);persist();refreshRecent();refreshRows();
