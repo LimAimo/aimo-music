@@ -53,7 +53,7 @@ const routeBase=appBase(window.location.pathname);
 window.__AIMO_BASE__=routeBase;
 const directRoute=parseRoute(window.location.href,routeBase);
 const priorRoute=readRoute(window.history.state);
-const startupRoute=directRoute?.view==='share'?null:directRoute?normalizeRoute({...priorRoute,...directRoute,
+const startupRoute=directRoute?.view==='share'?null:directRoute?normalizeRoute({...priorRoute,fullOpen:false,fullPanel:'cover',...directRoute,
   ...(directRoute.directSong?{view:'home',backView:'home',fullOpen:true,fullPanel:directRoute.fullPanel}:{}),
   ...(directRoute.view==='playlist'?{playlistProviderId:null}:{}),
 }):priorRoute;
