@@ -127,3 +127,19 @@ test('CurrentStation 手动预设保持用户文档给出的 /cm/ncm 路径',()=
   assert.match(settingsMarkup(state),/api-manager-form/);
   assert.match(settingsMarkup(state),/CurrentStation/);
 });
+
+
+test('CurrentStation 新响应结构与逐行歌词适配',async()=>{
+  const {StationMusicApi}=await import('../client/src/api/providers.js');
+  const api=new StationMusicApi('https://music.20110208.xyz/cm/ncm',async url=>{
+    const u=new URL(url);
+    if(u.pathname.endsWith('/search'))return json({songs:[{ncm_id:9,name:'测试',artists:'歌手',album:'专辑',pic:'https://example.org/p.png',duration:123000}]});
+    if(u.pathname.endsWith('/lyric'))return json({lines:[{t:1234,txt:'你好',trans:'Hello'}]});
+    if(u.pathname.endsWith('/song/detail'))return json({songs:[{ncm_id:9,name:'测试'}]});
+    if(u.pathname.endsWith('/song/url/v1'))return json({code:200,data:[{id:9,url:null,code:404}]});
+    return json({});
+  });
+  const songs=await api.searchSongs('测试');assert.equal(songs[0].id,'9');assert.equal(songs[0].duration,123);
+  const lyrics=await api.lyrics(9);assert.match(lyrics.original,/\\[00:01.234\\]你好/);assert.match(lyrics.translation,/Hello/);
+  await assert.rejects(()=>api.audioUrl(9),/暂无可用播放地址/);
+});

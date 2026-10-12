@@ -3,12 +3,12 @@ import { MusicApi, DEFAULT_API_BASE, validateApiBase, safeExternalUrl } from './
 
 export const BUILTIN_ID = 'netease-default';
 export const DEFAULT_PROFILES = Object.freeze([
-  { id: BUILTIN_ID, name: '默认音乐接口', type: 'netease', base: DEFAULT_API_BASE, namespace: 'netease', enabled: true, rules: {} },
+  { id: BUILTIN_ID, name: '默认音乐接口', type: 'station', base: 'https://music.20110208.xyz/cm/ncm', namespace: 'netease', enabled: true, rules: {} },
 ]);
 // 根据用户提供的 CurrentStation 接口目录：/cm/ncm/{path}；真实响应和 CORS 尚未实测。
 export const STATION_NCM_PRESET = Object.freeze({
-  id: 'currentstation-ncm', name: 'CurrentStation 网易云代理（待验证）',
-  type: 'netease', base: 'https://music.20110208.xyz/cm/ncm', namespace: 'netease', enabled: true, rules: {},
+  id: 'currentstation-ncm', name: 'CurrentStation 网易云代理（已验证搜索与歌词）',
+  type: 'station', base: 'https://music.20110208.xyz/cm/ncm', namespace: 'netease', enabled: true, rules: {},
 });
 export const MAX_PROFILES = 20;
 const MAX_RULE_BYTES = 25000;
@@ -85,21 +85,21 @@ export function validateProfile(input) {
   if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id)) throw Error('API ID 只能包含字母、数字、- 和 _');
   const name = safeString(input.name, 70);
   if (!name) throw Error('请输入 API 名称');
-  const type = ['custom','netease'].includes(input.type) ? input.type : null;
+  const type = ['custom','netease','station'].includes(input.type) ? input.type : null;
   if (!type) throw Error('未知的 API 类型');
   const base = validateApiBase(input.base);
   if (type === 'custom' && base === '/music-api') throw Error('自定义接口请使用完整的 HTTPS 地址');
-  const namespace = safeString(input.namespace || (type === 'netease' ? 'netease' : id), 90);
+  const namespace = safeString(input.namespace || (type === 'netease' || type === 'station' ? 'netease' : id), 90);
   if (!/^[a-zA-Z0-9_-]{1,90}$/.test(namespace)) throw Error('资源命名空间只能使用字母、数字、- 和 _');
   return { id, name, type, base, namespace, enabled: input.enabled !== false, rules: type === 'custom' ? validateRules(input.rules) : {} };
 }
 export function sanitizeProfiles(input, legacyBase = DEFAULT_API_BASE) {
   let base = DEFAULT_API_BASE;
   try {base = validateApiBase(legacyBase);} catch { /* 旧数据不合法时恢复默认 */ }
-  const list = Array.isArray(input) ? input : [{ ...DEFAULT_PROFILES[0], base }];
+  const list = Array.isArray(input) ? input : [{ ...DEFAULT_PROFILES[0], ...(base !== DEFAULT_API_BASE ? {type:'netease',base} : {}) }];
   const profiles = [], ids = new Set();
   for (const raw of list.slice(0, MAX_PROFILES)) {
-    try {const profile=validateProfile(raw);if(!ids.has(profile.id)){profiles.push(profile);ids.add(profile.id);}} catch { /* 独立跳过损坏项 */ }
+    try {let profile=validateProfile(raw);if(profile.id===BUILTIN_ID&&profile.type==='netease'&&profile.base===DEFAULT_API_BASE)profile={...DEFAULT_PROFILES[0]};if(!ids.has(profile.id)){profiles.push(profile);ids.add(profile.id);}} catch { /* 独立跳过损坏项 */ }
   }
   return profiles.length ? profiles : [{...DEFAULT_PROFILES[0],base}];
 }
@@ -184,6 +184,51 @@ export class CustomMusicApi {
   async audioUrl(id,quality='standard',signal){const {data,ep}=await this.request('audioUrl',{id,quality},signal);const url=safeExternalUrl(readPath(data,ep.url)||'');if(!url)throw Error('此歌曲暂无可用播放地址（可能存在版权或会员限制）');return url;}
 }
 
+
+/** CurrentStation 返回的是扁平歌曲对象与逐行歌词，不能当成旧网易云响应。 */
+export class StationMusicApi extends MusicApi {
+  song(raw) {
+    if (!raw || raw.ncm_id == null) return null;
+    return {id:String(raw.ncm_id),title:String(raw.name||'未命名歌曲'),artist:String(raw.artists||'未知音乐人'),
+      album:String(raw.album||''),cover:safeExternalUrl(raw.pic||''),duration:Math.max(0,Math.round(Number(raw.duration||0)/1000))||0,source:'remote'};
+  }
+  async searchSongs(keywords,signal) {
+    if (!String(keywords||'').trim()) return [];
+    const data=await this.get('search',{keywords,limit:45,type:1},signal);
+    if (!Array.isArray(data.songs)) throw Error('音乐 API 歌曲列表响应结构无效');
+    return data.songs.map(x=>this.song(x)).filter(Boolean);
+  }
+  async searchPlaylists(keywords,signal) {
+    if (!String(keywords||'').trim()) return [];
+    const data=await this.get('search',{keywords,limit:30,type:1000},signal);
+    return (data.playlists||[]).map(p=>({id:String(p.id),title:String(p.name||'未命名歌单'),cover:safeExternalUrl(p.pic||''),count:Number(p.trackCount)||0,creator:String(p.creator||''),description:''}));
+  }
+  async discoverPlaylists(signal) {
+    const data=await this.get('../bootstrap',{},signal);
+    return (data.daily?.daily||[]).slice(0,8).map(song=>({id:String(song.ncm_id),title:String(song.name||'每日推荐'),cover:safeExternalUrl(song.pic||''),count:1,creator:String(song.artists||''),description:''}));
+  }
+  async playlistDetail(id,signal) {
+    const data=await this.get('playlist/detail',{id},signal);
+    const raw=data.playlist||data;
+    const tracks=(raw.tracks||raw.songs||[]).map(x=>this.song(x)).filter(Boolean);
+    return {id:String(id),title:String(raw.name||'歌单'),cover:safeExternalUrl(raw.pic||raw.coverImgUrl||''),description:String(raw.description||''),count:Number(raw.trackCount)||tracks.length,creator:String(raw.creator||''),tracks};
+  }
+  async lyrics(id,signal) {
+    const data=await this.get('lyric',{id},signal);
+    if (!Array.isArray(data.lines)) throw Error('音乐 API 歌词响应结构无效');
+    const stamp=t=>{const ms=Math.max(0,Number(t)||0);const minutes=Math.floor(ms/60000);const seconds=Math.floor(ms%60000/1000);return String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0')+'.'+String(ms%1000).padStart(3,'0');};
+    return {original:data.lines.map(l=>'['+stamp(l.t)+']'+String(l.txt||'')).join('\\n'),
+      translation:data.lines.filter(l=>l.trans).map(l=>'['+stamp(l.t)+']'+String(l.trans)).join('\\n')};
+  }
+  async audioUrl(id,quality='standard',signal) {
+    const data=await this.get('song/url/v1',{id,level:quality},signal);
+    const entry=data.data?.[0];
+    const url=safeExternalUrl(entry?.url||'');
+    if (!url) throw Error('此歌曲暂无可用播放地址（服务返回 '+String(entry?.code||'空地址')+'；可能存在版权或资源限制）');
+    return url;
+  }
+}
+
 const recoverable = error => /(?:HTTP (?:404|408|410|425|429|5\d\d)|无法连接|跨域|网络|超时|无效 JSON|响应结构无效|未配置)/i.test(String(error?.message));
 export class ManagedMusicApi {
   constructor(fetcher=fetch){this.fetcher=fetcher;this.configure({apiProfiles:DEFAULT_PROFILES,activeApiId:BUILTIN_ID,apiSwitchMode:'auto'});}
@@ -199,7 +244,7 @@ export class ManagedMusicApi {
   client(profile){
     if(!this.cache.has(profile.id)){
       const proxy = profile.id===BUILTIN_ID && profile.type==='netease' && (this.connectionMode==='proxy'||(this.connectionMode==='auto' && import.meta.env?.DEV));
-      this.cache.set(profile.id,profile.type==='custom'?new CustomMusicApi(profile,this.fetcher):new MusicApi(proxy?'/music-api':profile.base,this.fetcher));
+      this.cache.set(profile.id,profile.type==='custom'?new CustomMusicApi(profile,this.fetcher):(profile.type==='station'?new StationMusicApi(profile.base,this.fetcher):new MusicApi(proxy?'/music-api':profile.base,this.fetcher)));
     }
     return this.cache.get(profile.id);
   }

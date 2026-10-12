@@ -2,7 +2,7 @@ import { sanitizeProfiles, BUILTIN_ID } from '../api/providers.js';
 const KEY = 'aimo-music-v1';
 export const defaultSettings = Object.freeze({
   theme: 'system', volume: 0.75, quality: 'standard',
-  apiBase: 'https://music.20110208.xyz',
+  apiBase: 'https://music.20110208.xyz/cm/ncm',
   apiMode: 'auto',
   activeApiId: BUILTIN_ID, apiSwitchMode: 'auto',
 });
