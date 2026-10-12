@@ -1,4 +1,6 @@
+import {trackIdentity} from '../api/providers.js';
 // 独立的追加式播放历史，不修改旧版 localStorage 或音频数据库。
+let summaryCache=null;
 const NAME = 'aimo-music-library';
 const STORE = 'play-history';
 const open = () => new Promise((resolve,reject) => {
@@ -28,10 +30,17 @@ const transaction = async (mode,callback) => {
 export async function recordPlayHistory(track) {
   if (!track || typeof track.id!=='string') return;
   const {id,title,artist,album,cover,source,providerNamespace,providerId,duration}=track;
-  return transaction('readwrite',store=>store.add({
+  const result=await transaction('readwrite',store=>store.add({
     track:{id,title,artist,album,cover,source,providerNamespace,providerId,duration},
     playedAt:Date.now()
   }));
+  if(summaryCache){
+    const key=trackIdentity(track);
+    summaryCache.tracks.set(key,track);
+    summaryCache.counts.set(key,(summaryCache.counts.get(key)||0)+1);
+    summaryCache.last.set(key,Date.now());
+  }
+  return result;
 }
 export async function readPlayHistory({limit=100,before=Infinity,beforeId=null}={}) {
   const db=await open();
@@ -49,7 +58,7 @@ export async function readPlayHistory({limit=100,before=Infinity,beforeId=null}=
     tx.onerror=()=>{db.close();reject(tx.error);};
   });
 }
-export async function clearPlayHistory(){return transaction('readwrite',store=>store.clear());}
+export async function clearPlayHistory(){const result=await transaction('readwrite',store=>store.clear());summaryCache=null;return result;}
 
 export async function allPlayHistory(){
  const rows=[];let beforeId=null;
@@ -57,10 +66,34 @@ export async function allPlayHistory(){
  return rows;
 }
 export async function replaceHistory(rows){
+ summaryCache=null;
  if(!Array.isArray(rows)||rows.length>1000000)throw Error('历史文件太大');
  const db=await open();return new Promise((yes,no)=>{
   const tx=db.transaction(STORE,'readwrite'),s=tx.objectStore(STORE);s.clear();
   for(const row of rows)if(row?.track?.id&&Number.isFinite(row.playedAt))s.add({track:row.track,playedAt:row.playedAt});
   tx.oncomplete=()=>{db.close();yes();};tx.onerror=()=>{db.close();no(tx.error);};
  });
+}
+
+export async function summarizePlayHistory(){
+ if(summaryCache)return summaryCache;
+ const db=await open();
+ const result=await new Promise((resolve,reject)=>{
+  const tx=db.transaction(STORE,'readonly'),tracks=new Map(),counts=new Map(),last=new Map();
+  const request=tx.objectStore(STORE).openCursor(null,'prev');
+  request.onsuccess=()=>{
+   const cursor=request.result;if(!cursor)return;
+   const row=cursor.value,track=row?.track;
+   if(track?.id&&typeof track.title==='string'){
+    const key=trackIdentity(track);
+    if(!tracks.has(key))tracks.set(key,track);
+    counts.set(key,(counts.get(key)||0)+1);
+    last.set(key,Math.max(last.get(key)||0,row.playedAt||0));
+   }
+   cursor.continue();
+  };
+  tx.oncomplete=()=>{db.close();resolve({tracks,counts,last});};
+  tx.onerror=()=>{db.close();reject(tx.error);};
+ });
+ summaryCache=result;return result;
 }

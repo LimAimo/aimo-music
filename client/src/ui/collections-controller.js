@@ -1,12 +1,12 @@
 import {listPlaylists,savePlaylist,deletePlaylist,replacePlaylists,freshPlaylist,emptyRules,calculateSmart} from '../core/collections.js';
 import {songMenuMarkup} from './collections-view.js';
-import {allPlayHistory,replaceHistory} from '../core/history.js';
+import {allPlayHistory,replaceHistory,summarizePlayHistory} from '../core/history.js';
 import {trackIdentity} from '../api/providers.js';
 export function mountCollections({app,state,render,toast,confirm,findSong,playCollection,onSong,getSnapshot,restoreSnapshot}){
  let menu=null,track=null,drag=-1;
  const close=()=>{menu?.remove();menu=null;track=null;};
  const refresh=async()=>{const p=state.localPlaylists.find(x=>x.id===state.selectedLocalPlaylist);
-  state.selectedLocalTracks=p?(p.smart?calculateSmart(p,{...state,history:await allPlayHistory()}):p.tracks):[];render();};
+  state.selectedLocalTracks=p?(p.smart?calculateSmart(p,{...state,historySummary:await summarizePlayHistory()}):p.tracks):[];render();};
  const load=async()=>{state.localPlaylists=await listPlaylists();await refresh();};
  const save=async p=>{await savePlaylist(p);state.localPlaylists=await listPlaylists();await refresh();};
  function node(path){let p=state.collectionDraft?.rules;for(const i of String(path).split('.').slice(1))p=p?.items?.[+i];return p;}

@@ -51,12 +51,15 @@ export function evalRule(rule,track,stats){
   const values={favorite:String(stats.favorites.has(id)),played:String(n>0),count:n,artist:track.artist,title:track.title,album:track.album,duration:track.duration,source:track.source,daysSincePlayed:last?Math.floor((Date.now()-last)/86400000):100000};
   return compare(values[rule.field],rule.op,rule.value);
 }
-export function calculateSmart(p,{favorites=[],recent=[],localFiles=[],localPlaylists=[],history=[]}){
+export function calculateSmart(p,{favorites=[],recent=[],localFiles=[],localPlaylists=[],history=[],historySummary=null}){
   const tracks=new Map(),counts=new Map(),last=new Map();
-  for(const t of [...favorites,...recent,...localFiles,...localPlaylists.filter(x=>!x.smart).flatMap(x=>x.tracks||[]),...history.map(x=>x.track)]){
+  for(const t of [...favorites,...recent,...localFiles,...localPlaylists.filter(x=>!x.smart).flatMap(x=>x.tracks||[]),...(historySummary?[...historySummary.tracks.values()]:history.map(x=>x.track))]){
     if(isTrack(t))tracks.set(trackIdentity(t),t);
   }
-  for(const row of history){if(!isTrack(row.track))continue;const id=trackIdentity(row.track);counts.set(id,(counts.get(id)||0)+1);last.set(id,Math.max(last.get(id)||0,row.playedAt||0));}
+  if(historySummary){
+    for(const [id,n] of historySummary.counts)counts.set(id,n);
+    for(const [id,time] of historySummary.last)last.set(id,time);
+  }else for(const row of history){if(!isTrack(row.track))continue;const id=trackIdentity(row.track);counts.set(id,(counts.get(id)||0)+1);last.set(id,Math.max(last.get(id)||0,row.playedAt||0));}
   const stats={favorites:new Set(favorites.map(trackIdentity)),counts,last};
   const arr=[...tracks.values()].filter(t=>evalRule(p.rules,t,stats));
   if(p.sort==='count')arr.sort((a,b)=>(counts.get(trackIdentity(b))||0)-(counts.get(trackIdentity(a))||0));
