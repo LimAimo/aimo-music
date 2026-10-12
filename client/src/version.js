@@ -1,1 +1,1 @@
-export const versionInfo = Object.freeze({version:'0.3.2',build:'cover-motion-ambient-settings-polish'});
+export const versionInfo = Object.freeze({version:'0.3.3',build:'mini-glass-and-stable-shared-transition'});
