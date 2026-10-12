@@ -1,1 +1,1 @@
-export const versionInfo = Object.freeze({version:'0.3.4',build:'defaults-lyrics-slider-track'});
+export const versionInfo = Object.freeze({version:'0.3.5',build:'navigation-restore-player-back-menu-sections'});
