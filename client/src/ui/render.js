@@ -5,6 +5,7 @@ import { icon } from './icons.js';
 import { segmentedMarkup } from './controls.js';
 import { formatTime } from '../core/lyrics.js';
 import { safeExternalUrl } from '../api/music.js';
+import { collectionsMarkup } from './collections-view.js';
 
 export function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -43,7 +44,7 @@ export function songRow(song, index, { active = false, playing = false, context 
   return `<article class="song-row ${active ? 'is-current' : ''}" data-song-id="${e(song.id)}" data-namespace="${e(song.source==='local'?'local':song.providerNamespace||'netease')}">
     <button class="song-main" data-action="play-row" data-context="${e(context)}" data-index="${index}" aria-label="播放 ${e(song.title)}"><span class="song-index">${active && playing ? '<span class="playing-bars"><i></i><i></i><i></i></span>' : String(index + 1).padStart(2,'0')}</span>${albumArt(song, 'row')}<span class="song-details"><strong>${e(song.title)}</strong><span>${e(song.artist)}</span></span></button>
     <span class="song-album">${e(source)}</span><span class="song-duration">${song.duration ? formatTime(song.duration) : '—'}</span>
-    <div class="song-actions"><button class="icon-button ${song.favorite ? 'is-favorite' : ''}" data-action="favorite" data-id="${e(song.id)}" data-namespace="${e(song.source==='local'?'local':song.providerNamespace||'netease')}" data-context="${e(context)}" title="${song.favorite ? '取消喜欢' : '喜欢'}" aria-label="${song.favorite ? '取消喜欢' : '喜欢'}" aria-pressed="${Boolean(song.favorite)}">${icon('heart', 19)}</button><button class="icon-button" data-action="queue-add" data-id="${e(song.id)}" data-namespace="${e(song.source==='local'?'local':song.providerNamespace||'netease')}" data-context="${e(context)}" title="加入播放队列" aria-label="加入队列">${icon('plus', 19)}</button>${removable ? `<button class="icon-button" data-action="local-delete" data-id="${e(song.id)}" aria-label="移除本地歌曲" title="移除本地歌曲">${icon('trash',18)}</button>` : ''}</div>
+    <div class="song-actions"><button class="icon-button ${song.favorite ? 'is-favorite' : ''}" data-action="favorite" data-id="${e(song.id)}" data-namespace="${e(song.source==='local'?'local':song.providerNamespace||'netease')}" data-context="${e(context)}" title="${song.favorite ? '取消喜欢' : '喜欢'}" aria-label="${song.favorite ? '取消喜欢' : '喜欢'}" aria-pressed="${Boolean(song.favorite)}">${icon('heart', 19)}</button><button class="icon-button" data-action="queue-add" data-id="${e(song.id)}" data-namespace="${e(song.source==='local'?'local':song.providerNamespace||'netease')}" data-context="${e(context)}" title="加入播放队列" aria-label="加入队列">${icon('plus', 19)}</button><button class="icon-button" data-feature="song-menu" data-id="${e(song.id)}" data-context="${e(context)}" data-namespace="${e(song.source==='local'?'local':song.providerNamespace||'netease')}" aria-label="更多操作" title="更多操作">${icon('more',18)}</button>${removable ? `<button class="icon-button" data-action="local-delete" data-id="${e(song.id)}" aria-label="移除本地歌曲" title="移除本地歌曲">${icon('trash',18)}</button>` : ''}</div>
   </article>`;
 }
 
@@ -88,6 +89,7 @@ export function searchMarkup(state) {
 }
 
 export function libraryContentMarkup(state) {
+  if(state.libraryTab==='playlists')return collectionsMarkup(state);
   if(state.libraryTab==='history') {
     const rows=(state.historyEntries||[]).map(entry=>{
       const song=entry.track||{};
@@ -103,7 +105,7 @@ export function libraryContentMarkup(state) {
 
 export function libraryMarkup(state) {
   return `<div class="page page-library"><div class="page-intro library-intro"><div><h1>你的音乐库</h1><p>喜欢的音乐，都在这里。</p></div><button class="button button-quiet" data-action="import">${icon('upload',17)} 导入音乐</button></div>
-  <div class="library-header">${segmentedMarkup([{value:'favorites',label:`我喜欢的 · ${state.favorites.length}`},{value:'recent',label:'最近播放'},{value:'history',label:'播放历史'},{value:'local',label:'本地歌曲'}],state.libraryTab,'library-segmented')}</div>
+  <div class="library-header">${segmentedMarkup([{value:'favorites',label:`我喜欢的 · ${state.favorites.length}`},{value:'recent',label:'最近播放'},{value:'history',label:'播放历史'},{value:'playlists',label:'我的歌单'},{value:'local',label:'本地歌曲'}],state.libraryTab,'library-segmented')}</div>
   <div class="library-content" id="library-content" aria-live="polite">${libraryContentMarkup(state)}</div>
   <p class="library-footnote">收藏和播放记录只保存在当前浏览器，不会上传到音乐 API。清除浏览器网站数据会删除本地收藏及已导入的音频文件。</p></div>`;
 }
