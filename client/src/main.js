@@ -543,7 +543,7 @@ async function openPlaylist(id, { record = true, providerId = null, namespace = 
   const isFeatured = record && state.view === 'home' && !!sourceElement?.closest('.home-discover');
   if(isFeatured)sharedPlaylistOrigin={view:'home',id:String(id),providerId:providerId||'',scrollY:window.scrollY};
   else if(record)sharedPlaylistOrigin=null;
-  const backView = restoredBackView || (state.view === 'search' ? 'search' : state.view === 'library' ? 'library' : 'home');
+  const backView = restoredBackView || (state.view === 'playlist' ? state.backView : state.view === 'search' ? 'search' : state.view === 'library' ? 'library' : 'home');
   state.playlistPreview=isFeatured ? state.featured.find(x=>String(x.id)===String(id))||null : null;
   state.view='playlist'; state.backView=backView; state.playlistId=id; state.playlistProviderId=providerId; state.playlistNamespace=namespace; state.playlistLoading=true; state.playlistError=''; state.playlist=null; state.playlistTitle='';state.navigationMenuOpen=false;
   snapshotLocation({push:record});
@@ -796,7 +796,7 @@ function handleAction(button) {
     case 'retry-search':void runSearch();break;
     case 'retry-featured':void loadFeatured();break;
     case 'open-playlist':void openPlaylist(id,{providerId:button.dataset.providerId||null,namespace:button.dataset.namespace||null,sourceElement:button});break;
-    case 'retry-playlist':void openPlaylist(state.playlistId);break;
+    case 'retry-playlist':void openPlaylist(state.playlistId,{record:false,providerId:state.playlistProviderId,namespace:state.playlistNamespace,backView:state.backView});break;
     case 'play-playlist':playCollection(state.playlist?.tracks||[],0);break;
     case 'play-row': {
       const list={searchSongs:state.searchSongs,recent:state.recent,favorites:state.favorites,local:state.localFiles,playlist:state.playlist?.tracks||[]}[context]||[];
@@ -1024,7 +1024,7 @@ window.addEventListener('online',()=>{
   toast('网络已恢复，正在更新在线内容');
   if(state.view==='home')void loadFeatured();
   if(state.view==='search'&&state.searchQuery)void runSearch(state.searchQuery,{preserveTabs:true});
-  if(state.view==='playlist'&&state.playlistId)void openPlaylist(state.playlistId,{record:false,providerId:state.playlistProviderId,namespace:state.playlistNamespace});
+  if(state.view==='playlist'&&state.playlistId)void openPlaylist(state.playlistId,{record:false,providerId:state.playlistProviderId,namespace:state.playlistNamespace,backView:state.backView});
 });
 window.addEventListener('offline',()=>toast('网络已断开，仍可浏览缓存内容和本地歌曲'));
 function restoreHistoryLocation(entry){
