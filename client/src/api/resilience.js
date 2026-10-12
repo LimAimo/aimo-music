@@ -39,6 +39,7 @@ export async function cachedResource(key,load,{signal,onFresh,maxAgeDays=30}={})
   }
   return {value:current,cached:true};
  }
+ if(isOffline())throw Error('当前离线且没有这部分内容的缓存，联网后会自动更新。');
  return {value:await getFresh(),cached:false};
 }
 export const isOffline=()=>typeof navigator!=='undefined'&&navigator.onLine===false;

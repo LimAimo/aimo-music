@@ -27,7 +27,12 @@ export function mountCollections({app,state,render,toast,confirm,findSong,playCo
   if(a.startsWith('song-')){const t=track;if(!t)return;
    if(a==='song-add'){const p=state.localPlaylists.find(x=>x.id===id&&!x.smart);if(p){if(p.tracks.some(x=>trackIdentity(x)===trackIdentity(t)))toast('该歌曲已在歌单中');else{await save({...p,tracks:[...p.tracks,t]});toast('已加入歌单');}}}
    else if(a==='song-copy'||a==='song-link'){const value=a==='song-copy'?[t.title,t.artist,t.album].filter(Boolean).join(' - '):String(t.url||t.link||'');if(!value||a==='song-link'&&!/^https?:\/\//i.test(value))toast('这个音乐来源没有可用链接');else try{await navigator.clipboard.writeText(value);toast('已复制');}catch{toast('复制失败');}}
-   else if(a==='song-info')toast([t.title,t.artist,t.album,t.duration&&t.duration+'秒'].filter(Boolean).join(' · '));
+   else if(a==='song-info'){
+    const info=document.createElement('div');info.className='feat-menu-backdrop';
+    const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    info.innerHTML=`<div class="feat-menu" role="dialog" aria-label="歌曲信息"><h3>歌曲信息</h3><p>歌曲：${esc(t.title)}</p><p>歌手：${esc(t.artist)}</p><p>专辑：${esc(t.album||'未知')}</p><p>时长：${Number(t.duration)||0} 秒</p><p>来源：${esc(t.source)}</p><button data-feature="close-menu">关闭</button></div>`;
+    close();menu=info;document.body.append(info);return;
+   }
    else onSong(a.slice(5),t);
    close();return;}
   if(a==='back'){if(state.collectionEdit)state.collectionEdit=false;else state.selectedLocalPlaylist=null;await refresh();return;}

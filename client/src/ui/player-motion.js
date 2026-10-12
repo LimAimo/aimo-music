@@ -35,6 +35,7 @@ export function enablePlayerSwipe(full,onClose){
  };
  full.addEventListener('pointerdown',e=>{
   if(!eligible(e))return;
+  try{full.setPointerCapture(e.pointerId);}catch{}
   start={x:e.clientX,y:e.clientY,time:performance.now()};
   last=start;amount=0;tracking=false;
  },{passive:true});

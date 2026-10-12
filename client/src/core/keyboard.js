@@ -48,7 +48,7 @@ export function parseShortcutForm(form){
 export function installKeyboardShortcuts(actions,{getBindings=defaultBindings,getContext=()=>({})}={}){
  const handler=e=>{
   if(e.defaultPrevented||e.isComposing||e.repeat&&e.code!=='ArrowRight'&&e.code!=='ArrowLeft')return;
-  if(e.target?.closest?.('input,textarea,select,[contenteditable="true"],[role="textbox"]'))return;
+  if(e.code!=='Escape'&&e.target?.closest?.('input,textarea,select,[contenteditable="true"],[role="textbox"]'))return;
   if(e.code==='Space'&&e.target?.closest?.('button,a,[role="button"]'))return;
   if(e.code!=='Escape'&&document.querySelector('#settings-overlay:not(.is-leaving)'))return;
   const combo=comboFromEvent(e);if(!combo)return;

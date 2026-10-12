@@ -521,12 +521,13 @@ function updateMediaSession(song) {
 function cleanLocalObjectUrl() {
   if (localObjectUrl) { URL.revokeObjectURL(localObjectUrl); localObjectUrl=null; }
 }
-async function playIndex(index, { forceRefresh = false, fromNavigation = false } = {}) {
+async function playIndex(index, { forceRefresh = false, fromNavigation = false, resumeAt = 0, preserveHistory = false } = {}) {
   const song=state.queue[index];
   if (!song) return;
   if (!fromNavigation) shuffleHistory.reset(state.queue, index);
+  const previouslyRecorded=historyRecordedToken===playToken;
   ++playToken;
-  historyRecordedToken = -1;
+  historyRecordedToken=preserveHistory&&previouslyRecorded?playToken:-1;
   playController?.abort();
   playController=new AbortController();
   const token=playToken;
@@ -535,11 +536,11 @@ async function playIndex(index, { forceRefresh = false, fromNavigation = false }
   audio.pause(); audio.removeAttribute('src'); audio.load();
   cleanLocalObjectUrl();
   audioTrackId=null;
-  state.queueIndex=index; state.current=song; state.time=0; state.duration=song.duration||0;
+  state.queueIndex=index; state.current=song; state.time=resumeAt||0; state.duration=song.duration||0;
   state.playing=false; state.buffering=true; persist();
   renderPlayer(); refreshRows(); renderOverlay();
   updateMediaSession(song);
-  void loadLyricsFor(song);
+  if(!preserveHistory)void loadLyricsFor(song);
   let url;
   try {
     if (song.source === 'local') {
@@ -547,9 +548,14 @@ async function playIndex(index, { forceRefresh = false, fromNavigation = false }
       if (!blob) throw new Error('找不到本地音频文件，请重新导入。');
       if (token!==playToken) return;
       url=URL.createObjectURL(blob); localObjectUrl=url;
-    } else url=await api.audioUrl(song.id,state.settings.quality,playController.signal,song.providerId,song.providerNamespace);
+    } else url=await smartRetry(()=>api.audioUrl(song.id,state.settings.quality,playController.signal,song.providerId,song.providerNamespace),{signal:playController.signal});
     if (token!==playToken) { if (song.source==='local' && localObjectUrl===url) cleanLocalObjectUrl(); return; }
     audio.src=url;
+    if(resumeAt>0){
+      const restore=()=>{if(token!==playToken)return;try{audio.currentTime=resumeAt;}catch{};};
+      audio.addEventListener('loadedmetadata',restore,{once:true});
+      audio.addEventListener('canplay',restore,{once:true});
+    }
     audioTrackId=song.id;
     audio.volume=state.settings.volume;
     try { await audio.play(); }
@@ -937,8 +943,8 @@ installKeyboardShortcuts({
   'Space': () => state.playing ? pause() : resume(),
   'ArrowRight': () => seek((audio.currentTime || 0) + 5),
   'ArrowLeft': () => seek((audio.currentTime || 0) - 5),
-  'ArrowUp': () => { audio.volume = Math.min(1, audio.volume + .05); state.settings.volume = audio.volume; persist(); },
-  'ArrowDown': () => { audio.volume = Math.max(0, audio.volume - .05); state.settings.volume = audio.volume; persist(); },
+  'ArrowUp': () => { audio.volume = Math.min(1, audio.volume + .05); state.settings.volume = audio.volume; persist(); renderPlayer(); },
+  'ArrowDown': () => { audio.volume = Math.max(0, audio.volume - .05); state.settings.volume = audio.volume; persist(); renderPlayer(); },
   'KeyN': () => next(),
   'KeyP': () => previous(),
   'KeyM': () => { audio.muted = !audio.muted; },
@@ -971,7 +977,11 @@ audio.addEventListener('error',()=>{
     audioRetry=true;
     const index=state.queueIndex;
     toast('播放中断，正在重新获取地址……');
-    void playIndex(index,{forceRefresh:true});
+    const interruptedAt=Math.max(0,Number(audio.currentTime)||state.time||0);
+    if(isOffline()){
+      toast('网络已断开，等待联网后恢复当前歌曲');
+      window.addEventListener('online',()=>{if(state.queueIndex===index)void playIndex(index,{forceRefresh:true,resumeAt:interruptedAt,fromNavigation:true,preserveHistory:true});},{once:true});
+    }else void playIndex(index,{forceRefresh:true,resumeAt:interruptedAt,fromNavigation:true,preserveHistory:true});
   }else{state.playing=false;renderPlayer();toast('音频无法播放。可尝试切换音质或播放其他歌曲。','error');}
 });
 
