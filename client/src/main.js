@@ -270,18 +270,24 @@ function dismissOverlay(node, delay = 350) {
   const timeout = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : delay;
   setTimeout(() => { node.remove(); refreshOverlayLock(); synchronizeModalFocus(); }, timeout);
 }
+let sharedPlayerOpening=false;
 function openPlayer(panel='cover'){
   if(!state.current)return;
   const wasOpen=state.fullOpen;
   const from=wasOpen?null:document.querySelector('#player-slot .mini-now .album-art');
-  state.fullOpen=true;state.fullPanel=panel;renderOverlay();
+  sharedPlayerOpening=!wasOpen;
+  state.fullOpen=true;state.fullPanel=panel;
+  try{renderOverlay();}finally{sharedPlayerOpening=false;}
   if(!wasOpen){
     const full=document.querySelector('#full-player:not(.is-leaving)');
     if(full){
-      // 共享封面动画期间，禁止整页入场平移动画改变目标封面的测量坐标。
-      full.classList.add('is-shared-entering');
+      // 共享动画仅执行一遍。标记已入场，结束时不可重新触发原来的 full-enter 平移动画。
       animateCoverTransition(from,full.querySelector('.album-art--full'));
-      window.setTimeout(()=>full.classList.remove('is-shared-entering'),410);
+      window.setTimeout(()=>{
+        if(!full.isConnected||!full.classList.contains('is-shared-entering'))return;
+        full.classList.add('has-entered');
+        full.classList.remove('is-shared-entering');
+      },405);
     }
   }
 }
@@ -304,7 +310,11 @@ function renderOverlay() {
     if (full && full.dataset.trackId !== trackId) { full.remove(); full = null; }
     if (!full) {
       slot.querySelector('#full-player.is-leaving')?.remove();
-      slot.insertAdjacentHTML('beforeend', fullPlayerMarkup(state));
+      const markup=fullPlayerMarkup(state);
+      // 必须在插入 DOM 时就指定共享入场动画，避免普通入场动画先运行一帧。
+      slot.insertAdjacentHTML('beforeend',sharedPlayerOpening
+        ? markup.replace('class="full-overlay"','class="full-overlay is-shared-entering"')
+        : markup);
       full = slot.querySelector('#full-player:not(.is-leaving)');
       if (full) { full.dataset.trackId = trackId; recreatedFull = true; updateAmbient();enablePlayerSwipe(full,closePlayer); }
     }

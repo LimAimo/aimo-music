@@ -6,10 +6,14 @@
   will-change:left,top,width,height;
 }
 .player-shared-ghost img { display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit; }
+/* 固定定位克隆层独立布局，避免大图尺寸插值重新布局页面主体。 */
+.player-shared-ghost { contain: layout paint style; }
 .full-header,.full-art-section>.album-art { touch-action:none; }
 .full-overlay[data-swipe-bound="1"] {will-change:transform}
 /* Fade the page without moving the cover's measured destination. */
-.full-overlay.is-shared-entering { animation:full-shared-fade-in .34s ease both; }
+.full-overlay.is-shared-entering { animation:full-shared-fade-in .39s cubic-bezier(.22,1,.36,1) both; }
+/* is-shared-entering 移除后不能回退成原生 full-enter，否则整页会再向下抽动一次。 */
+.full-overlay.has-entered:not(.is-leaving) { animation:none !important; opacity:1; transform:none; }
 .full-overlay.is-leaving.is-shared-leaving { animation:full-shared-fade-out .32s ease both; }
 @keyframes full-shared-fade-in { from {opacity:0} to {opacity:1} }
 @keyframes full-shared-fade-out { from {opacity:1} to {opacity:0} }

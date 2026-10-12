@@ -1,6 +1,8 @@
 .player-shell { z-index: 40; position: fixed; bottom: 0; left: 0; right: 0; min-height: 104px; background: color-mix(in srgb,var(--bg) 95%,transparent); border-top: 1px solid var(--border-soft); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); padding-bottom: env(safe-area-inset-bottom); }
 .player-inner { position: relative; display: grid; grid-template-columns: minmax(220px,1fr) minmax(270px,1.18fr) minmax(200px,1fr); align-items: center; gap: 26px; height: 103px; max-width: calc(var(--content-max) + 68px); margin: auto; padding: 8px 34px; }
 .mini-now { display: flex; min-width: 0; width: fit-content; max-width: 100%; align-items: center; gap: 13px; text-align: left; padding: 0; border-radius: var(--radius-item); }
+/* 手指按下封面时不要缩放按钮，否则共享动画第一帧的封面矩形会突然变化。 */
+button.mini-now:not(:disabled):active:not(.seg-item) { transform:none; }
 .mini-meta { display: flex; flex-direction: column; min-width: 0; gap: 5px; }
 .mini-meta strong { font-size: 13px; font-weight: 650; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 200px; }
 .mini-meta small { color: var(--text-tertiary); font-size: 11px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

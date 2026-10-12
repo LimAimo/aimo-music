@@ -42,3 +42,14 @@ test('展开与收起页面不会拖动完整播放器定位',()=>{
  assert.match(css,/\.full-overlay\.is-leaving\.is-shared-leaving/);
  assert.doesNotMatch(css,/@keyframes full-shared-fade-(?:in|out)\s*\{[^}]*transform/);
 });
+
+test('共享封面仅入场一次，类名移除后也不会重复触发普通入场位移',()=>{
+ const main=file('../client/src/main.js'),css=file('../client/src/ui/player-motion.css');
+ const player=file('../client/src/styles/player.css');
+ assert.match(main,/sharedPlayerOpening=!wasOpen/);
+ assert.match(main,/markup\.replace\('class="full-overlay"','class="full-overlay is-shared-entering"'\)/);
+ assert.match(main,/full\.classList\.add\('has-entered'\)/);
+ assert.match(css,/\.full-overlay\.has-entered:not\(\.is-leaving\)\s*\{[^}]*animation:\s*none/);
+ assert.match(css,/\.full-overlay\.is-shared-entering\s*\{[^}]*\.39s/);
+ assert.match(player,/button\.mini-now:not\(:disabled\):active:not\(\.seg-item\)\s*\{\s*transform:\s*none/);
+});
