@@ -4,8 +4,10 @@ import './ui/ambient.css';
 import './ui/mini-transparency.css';
 import {applyAmbientPalette} from './ui/ambient-palette.js';
 import './ui/history.css';
-import './ui/navigation.css';
-import {directoryMarkup} from './ui/navigation-view.js';
+import './ui/share.css';
+import {installShareUi} from './ui/share.js';
+import {appBase,routeUrl,parseRoute} from './core/url-routes.js';
+import {normalizeShare,compactTrack} from './core/share.js';
 import {normalizeRoute,readRoute,saveRoute,routeFromState,historyEntry,sameLocation} from './core/navigation.js';
 import { sharedPlaylistTransition, isPlaylistTransitionRunning, interruptPlaylistTransition } from './ui/playlist-transition.js';
 import { animateCoverTransition,cancelPlayerTransition,enablePlayerSwipe } from './ui/player-motion.js';
@@ -38,12 +40,15 @@ installNetworkDebug();
 const audio = document.getElementById('audio-engine');
 const filePicker = document.getElementById('local-file-picker');
 const saved = readPersisted();
-const startupRoute=readRoute(window.history.state);
+const routeBase=appBase(window.location.pathname);
+window.__AIMO_BASE__=routeBase;
+const directRoute=parseRoute(window.location.href,routeBase);
+const startupRoute=directRoute?normalizeRoute({...readRoute(window.history.state),...directRoute}):readRoute(window.history.state);
 const startupHadOverlay=normalizeRoute(window.history.state)?.fullOpen===true;
 let restoringStartup=true;
 const state = {
   ...saved,
-  view: 'home', backView: 'home', showEasterEgg: false, navigationMenuOpen:false, playlistTitle:'',
+  view: 'home', backView: 'home', showEasterEgg: false, navigationMenuOpen:false, playlistTitle:'', shareData:null, shareError:'',
   current: saved.queue[saved.queueIndex] || null,
   playing: false, buffering: false, time: 0, duration: 0,
   fullOpen: false, fullPanel: 'cover', queueOpen: false, settingsOpen: false,
@@ -110,18 +115,15 @@ function snapshotLocation({push=false,overlay=state.fullOpen?'player':null}={}){
   if(restoringStartup){saveRoute(route);return;}
   try{
     const entry=historyEntry(route);
-    if(push)window.history.pushState(entry,'',window.location.href);
-    else window.history.replaceState(entry,'',window.location.href);
+    const song=state.current;
+    const pathname=routeUrl({...route,...(route.fullOpen&&song?.source!=='local'?{songId:song?.id,songNamespace:song?.providerNamespace||'netease',songSource:song?.source}:{})},routeBase);
+    const target=pathname+(route.view==='share'?window.location.hash:'');
+    if(push)window.history.pushState(entry,'',target);
+    else window.history.replaceState(entry,'',target);
   }catch{/* 浏览器受限时仍保留站内导航。 */}
   saveRoute(route);
 }
-function renderDirectory(){
-  const main=document.getElementById('main-view');
-  if(!main)return;
-  const existing=main.querySelector(':scope > .nav-directory');
-  if(existing)existing.outerHTML=directoryMarkup(state);
-  else main.insertAdjacentHTML('afterbegin',directoryMarkup(state));
-}
+function renderDirectory(){} // Breadcrumb navigation removed in favor of URL routes.
 function restoreDirectoryTab(){
   if(state.view==='library'&&state.libraryTab==='history'&&!state.historyEntries.length)void loadHistoryPage(true);
   if(state.view==='library'&&state.libraryTab==='playlists')void collections.refresh();
@@ -178,7 +180,9 @@ function renderPage({ restoreFocus = false } = {}) {
   const main = document.getElementById('main-view');
   const focusedSearch = restoreFocus && document.activeElement?.id === 'search-input';
   const cursor = focusedSearch ? document.activeElement.selectionStart : null;
-  main.innerHTML = state.view === 'search' ? searchMarkup(state)
+  main.innerHTML = state.view === 'share'
+    ? state.shareData?shareUi.view(state.shareData):shareUi.invalid(state.shareError||'分享内容不存在')
+    : state.view === 'search' ? searchMarkup(state)
     : state.view === 'library' ? libraryMarkup(state)
     : state.view === 'playlist' ? playlistMarkup(state)
     : homeMarkup(state);
@@ -734,28 +738,8 @@ function handleAction(button) {
   const index=Number(button.dataset.index);
   switch(action) {
     case 'navigate':navigate(button.dataset.view);break;
-    case 'nav-directory-toggle':
-      state.navigationMenuOpen=!state.navigationMenuOpen;renderDirectory();break;
-    case 'nav-go':{
-      const view=button.dataset.view,tab=button.dataset.tab;
-      state.navigationMenuOpen=false;
-      if(view==='library'&&tab){
-        state.libraryTab=tab;
-        state.selectedLocalPlaylist=null;
-        state.collectionEdit=false;
-        if(state.view==='library'){
-          snapshotLocation();renderPage();restoreDirectoryTab();
-        }else{navigate('library');restoreDirectoryTab();}
-      }else if(view==='library'&&state.view==='library'){
-        state.libraryTab='favorites';
-        state.selectedLocalPlaylist=null;
-        state.collectionEdit=false;
-        snapshotLocation();renderPage();
-      }else navigate(view);
-      renderDirectory();
-      break;
-    }
-    case 'playlist-back':navigate(state.backView,{record:false});break;
+    case 'nav-directory-toggle':break;
+    case 'playlist-back':navigate(state.backView);break;
     case 'history-more':void loadHistoryPage();break;
     case 'history-clear':void (async()=>{
       if(!await showConfirmDialog('清空播放历史','这将永久删除当前浏览器中的全部播放历史，不影响收藏和歌单。',{confirm:'清空',destructive:true}))return;
@@ -821,6 +805,14 @@ function handleAction(button) {
     case 'next':next();break;
     case 'shuffle':state.shuffle=!state.shuffle;shuffleHistory.reset(state.queue,state.queueIndex);persist();renderPlayer();renderOverlay();toast(state.shuffle?'随机播放已开启':'随机播放已关闭');break;
     case 'repeat':state.repeat=({off:'all',all:'one',one:'off'})[state.repeat];persist();renderPlayer();renderOverlay();toast(({off:'循环播放已关闭',all:'列表循环',one:'单曲循环'})[state.repeat]);break;
+    case 'share-current':if(state.current)shareUi.open(shareForTrack(state.current));break;
+    case 'share-playlist':if(state.playlist)shareUi.open(shareForPlaylist(state.playlist));break;
+    case 'share-lyrics':if(state.current){
+      const selected=state.lyrics.filter((line,i)=>button.dataset.selected?button.dataset.selected.split(',').includes(String(i)):line.text).slice(0,8).map(line=>line.text);
+      shareUi.open({...shareForTrack(state.current),type:'lyrics',lines:selected});
+    }break;
+    case 'share-recreate':if(state.shareData)shareUi.open(state.shareData);break;
+    case 'share-open-content':if(state.shareData)void openSharedContent(state.shareData);break;
     case 'open-full':openPlayer('cover');break;
     case 'close-full':closePlayer();break;
     case 'open-lyrics':openPlayer('lyrics');break;
@@ -919,6 +911,18 @@ function downloadProfiles() {
   setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 
+function shareForTrack(track){return {type:'song',title:track.title,subtitle:track.artist,cover:track.cover,track:compactTrack(track)};}
+function shareForPlaylist(list){return {type:'playlist',title:list.title,subtitle:list.creator||list.description||'',cover:list.cover,playlist:{id:state.playlistId,namespace:state.playlistNamespace||'netease',providerId:state.playlistProviderId,title:list.title,cover:list.cover,count:list.count||list.tracks?.length||0}};}
+async function openSharedContent(data){
+  if(data.type==='playlist'){await openPlaylist(data.playlist.id,{providerId:data.playlist.providerId,namespace:data.playlist.namespace});return;}
+  if((data.type==='song'||data.type==='lyrics')&&data.track){
+    if(data.track.source==='local'){toast('本地音频无法跨设备播放，请在自己的设备打开','error');return;}
+    navigate('home');state.queue=[data.track];state.queueIndex=0;state.current=data.track;persist();renderPlayer();openPlayer(data.type==='lyrics'?'lyrics':'cover');
+    return;
+  }
+  navigate('library');
+}
+const shareUi=installShareUi({app,toast,onOpenContent:openSharedContent});
 const collections=mountCollections({
  app,state,render:()=>{if(state.view==='library'&&state.libraryTab==='playlists')updateLibraryContent();},onNavigation:()=>{snapshotLocation();renderDirectory();},toast,
  confirm:showConfirmDialog,findSong,playCollection,
@@ -929,6 +933,7 @@ const collections=mountCollections({
   state.historyEntries=[];state.historyHasMore=true;
  },
  onSong:(action,track)=>{
+  if(action==='share'){shareUi.open(shareForTrack(track));return;}
   if(action==='next'){state.queue.splice(Math.max(0,state.queueIndex+1),0,track);shuffleHistory.reset(state.queue,state.queueIndex);persist();renderOverlay();toast('已安排下一首');}
   else if(action==='queue'){state.queue=appendToQueue(state.queue,track);shuffleHistory.reset(state.queue,state.queueIndex);persist();renderOverlay();toast('已加入播放队列');}
   else if(action==='favorite')toggleFavorite(track);
@@ -1119,6 +1124,10 @@ audio.addEventListener('error',()=>{
 
 async function init() {
   app.innerHTML=shellMarkup();
+  if(directRoute?.view==='share'){
+    state.view='share';
+    try{state.shareData=shareUi.readLink();}catch(error){state.shareError=error.message;}
+  }
   try {configureApi();} catch {state.settings.apiBase=DEFAULT_API_BASE;state.settings.apiProfiles=[{...STATION_NCM_PRESET,id:BUILTIN_ID,name:'默认音乐接口'}];configureApi();}
   applyTheme();audio.volume=Math.max(0,Math.min(1,state.settings.volume));
   if(startupRoute){
@@ -1144,10 +1153,15 @@ async function init() {
   restoreDirectoryTab();
   void loadFeatured();
   restoringStartup=false;
+  if(directRoute?.directSong&&directRoute.songId){
+    const match=[...state.queue,...state.favorites,...state.recent].find(t=>String(t.id)===directRoute.songId&&(t.providerNamespace||'netease')===directRoute.songNamespace);
+    const song=match||{id:directRoute.songId,source:'remote',providerNamespace:directRoute.songNamespace,title:'歌曲 '+directRoute.songId,artist:'',album:'',cover:''};
+    state.current=song;state.queue=[song];state.queueIndex=0;renderPlayer();
+  }
   if(startupRoute?.fullOpen&&state.current){
     // 对 sessionStorage 恢复的播放器新增可回退的一层；原本就在历史中的播放器只需恢复显示。
     if(!startupHadOverlay)snapshotLocation({overlay:null});
     openPlayer(startupRoute.fullPanel,{record:!startupHadOverlay});
-  }else snapshotLocation({overlay:null});
+  }else if(directRoute?.view!=='share')snapshotLocation({overlay:null});
 }
 void init().catch(error => {console.error('AimoMusic 启动失败',error);toast('应用初始化失败，请刷新页面重试。','error');});
