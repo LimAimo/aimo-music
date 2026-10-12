@@ -963,7 +963,10 @@ async function openSharedContent(data){
   }
   if((data.type==='song'||data.type==='lyrics')&&data.track){
     if(data.track.source==='local'){toast('本地音频无法跨设备播放，请在自己的设备打开','error');return;}
-    navigate('home');state.queue=[data.track];state.queueIndex=0;state.current=data.track;persist();renderPlayer();openPlayer(data.type==='lyrics'?'lyrics':'cover');
+    navigate('home');
+    // Opened from a real user click: initialize the stream and lyrics, not just a static player shell.
+    playCollection([data.track],0);
+    openPlayer(data.type==='lyrics'?'lyrics':'cover');
     return;
   }
   navigate('library');
