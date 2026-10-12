@@ -14,11 +14,19 @@ export function animateCoverTransition(from,to){
  if(!a.width||!b.width||!a.height||!b.height)return;
  const ghost=from.cloneNode(true),hidden=[from,to];
  ghost.classList.add('player-shared-ghost');
- Object.assign(ghost.style,{position:'fixed',left:a.left+'px',top:a.top+'px',width:a.width+'px',height:a.height+'px',margin:'0',pointerEvents:'none',zIndex:'500',transformOrigin:'top left'});
+ // 缩放整个 DOM 会连圆角一起放大：12px 变成 80px 后又突然跳回 12px。
+ // 直接补间边界框，确保整个转场过程中裁切圆角始终是固定的像素值。
+ const radius=getComputedStyle(to).borderRadius||'12px';
+ Object.assign(ghost.style,{
+  position:'fixed',left:a.left+'px',top:a.top+'px',width:a.width+'px',height:a.height+'px',
+  borderRadius:radius,margin:'0',pointerEvents:'none',zIndex:'500',boxSizing:'border-box'
+ });
  document.body.append(ghost);
  hidden.forEach(x=>x.style.visibility='hidden');
- const frames=[{transform:'translate(0px,0px) scale(1,1)',opacity:1},
- {transform:`translate(${b.left-a.left}px,${b.top-a.top}px) scale(${b.width/a.width},${b.height/a.height})`,opacity:1}];
+ const frames=[
+  {left:a.left+'px',top:a.top+'px',width:a.width+'px',height:a.height+'px',borderRadius:radius},
+  {left:b.left+'px',top:b.top+'px',width:b.width+'px',height:b.height+'px',borderRadius:radius}
+ ];
  const anim=ghost.animate(frames,{duration:390,easing:'cubic-bezier(.22,1,.36,1)',fill:'both'});
  const tx={anim,ghost,hidden};active=tx;
  const cleanup=()=>{if(active!==tx)return;active=null;ghost.remove();hidden.forEach(x=>{if(x.isConnected)x.style.visibility='';});};

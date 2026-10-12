@@ -1,1 +1,19 @@
-.player-shared-ghost{overflow:hidden;border-radius:14px;box-shadow:0 12px 38px rgba(0,0,0,.12);will-change:transform}.full-header,.full-art-section>.album-art{touch-action:none}.full-overlay[data-swipe-bound="1"]{will-change:transform}@media(prefers-reduced-motion:reduce){.full-overlay,.full-overlay.is-leaving{animation:none!important}}
+/* 迷你、完整播放器与转场克隆统一裁切圆角。 */
+:root { --player-cover-radius: 12px; }
+.album-art--mini,
+.album-art--full,
+.player-shared-ghost {
+ border-radius: var(--player-cover-radius);
+}
+.player-shared-ghost {
+ overflow: hidden;
+ box-shadow: 0 12px 38px rgba(0,0,0,.12);
+ will-change: left, top, width, height;
+}
+.full-overlay.is-shared-entering { animation: none !important; }
+.full-header, .full-art-section > .album-art { touch-action: none; }
+.full-overlay[data-swipe-bound="1"] { will-change: transform; }
+@media (prefers-reduced-motion: reduce) {
+ .full-overlay, .full-overlay.is-leaving { animation: none !important; }
+ .player-shared-ghost { will-change: auto; }
+}

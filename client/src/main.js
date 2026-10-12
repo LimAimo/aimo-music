@@ -269,7 +269,15 @@ function openPlayer(panel='cover'){
   const wasOpen=state.fullOpen;
   const from=wasOpen?null:document.querySelector('#player-slot .mini-now .album-art');
   state.fullOpen=true;state.fullPanel=panel;renderOverlay();
-  if(!wasOpen)animateCoverTransition(from,document.querySelector('#full-player:not(.is-leaving) .album-art--full'));
+  if(!wasOpen){
+    const full=document.querySelector('#full-player:not(.is-leaving)');
+    if(full){
+      // 共享封面动画期间，禁止整页入场平移动画改变目标封面的测量坐标。
+      full.classList.add('is-shared-entering');
+      animateCoverTransition(from,full.querySelector('.album-art--full'));
+      window.setTimeout(()=>full.classList.remove('is-shared-entering'),410);
+    }
+  }
 }
 function closePlayer(){
   if(!state.fullOpen)return;
