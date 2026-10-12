@@ -77,6 +77,10 @@
  /* 手机不显示仅适用于实体键盘的设置。隐藏不清空已保存的快捷键。 */
  .desktop-shortcuts-section { display: none !important; }
 }
+@media (hover: none) and (pointer: coarse) and (max-width: 1000px) {
+ /* Include landscape phones whose CSS viewport exceeds 767px. */
+ .desktop-shortcuts-section { display: none !important; }
+}
 @media (min-width: 768px) and (max-width: 900px) {
  .shortcut-setting { grid-template-columns: minmax(110px,1fr) minmax(100px,1fr) auto; }
 }
