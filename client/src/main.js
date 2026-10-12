@@ -40,6 +40,15 @@ installNetworkDebug();
 const audio = document.getElementById('audio-engine');
 const filePicker = document.getElementById('local-file-picker');
 const saved = readPersisted();
+const PROGRESS_KEY='aimo-music-progress-v1';
+let restoredProgress=null;
+try{restoredProgress=JSON.parse(sessionStorage.getItem(PROGRESS_KEY)||'null')}catch{}
+let lastProgressSave=0;
+function rememberProgress(){
+  if(Date.now()-lastProgressSave<1800)return;
+  lastProgressSave=Date.now();
+  try{sessionStorage.setItem(PROGRESS_KEY,JSON.stringify({id:state.current?.id,namespace:state.current?.providerNamespace||'netease',time:state.time,at:Date.now()}));}catch{}
+}
 const routeBase=appBase(window.location.pathname);
 window.__AIMO_BASE__=routeBase;
 const directRoute=parseRoute(window.location.href,routeBase);
@@ -1115,7 +1124,7 @@ installKeyboardShortcuts({
   'KeyL': () => { if(state.current){if(!state.fullOpen)openPlayer('lyrics');else{state.fullPanel=state.fullPanel==='lyrics'?'cover':'lyrics';renderOverlay();}} },
 },{getBindings:()=>state.settings.shortcuts,getContext:()=>({player:state.fullOpen,library:state.view==='library',search:state.view==='search',home:state.view==='home'})});
 
-audio.addEventListener('timeupdate',()=>{state.time=audio.currentTime||0;updateProgress();updateLyricHighlight();});
+audio.addEventListener('timeupdate',()=>{state.time=audio.currentTime||0;rememberProgress();updateProgress();updateLyricHighlight();});
 audio.addEventListener('loadedmetadata',()=>{state.duration=Number.isFinite(audio.duration)?audio.duration:(state.current?.duration||0);updateProgress();});
 audio.addEventListener('play',()=>{state.playing=true;updatePlayingButtons();});
 audio.addEventListener('pause',()=>{state.playing=false;updatePlayingButtons();});
@@ -1182,6 +1191,15 @@ async function init() {
     const match=[...state.queue,...state.favorites,...state.recent].find(t=>String(t.id)===directRoute.songId&&(t.providerNamespace||'netease')===directRoute.songNamespace);
     const song=match||{id:directRoute.songId,source:'remote',providerNamespace:directRoute.songNamespace,title:'歌曲 '+directRoute.songId,artist:'',album:'',cover:''};
     state.current=song;state.queue=[song];state.queueIndex=0;renderPlayer();
+  }
+  if(restoredProgress&&state.current&&String(restoredProgress.id)===String(state.current.id)&&restoredProgress.namespace===(state.current.providerNamespace||'netease')&&Date.now()-restoredProgress.at<7*86400000){
+    state.time=Math.max(0,Number(restoredProgress.time)||0);updateProgress();
+    // Never auto-play after a refresh; seek is applied only once metadata becomes available.
+    audio.addEventListener('loadedmetadata',()=>{
+      if(state.current&&String(state.current.id)===String(restoredProgress.id)&&Number.isFinite(audio.duration)){
+        audio.currentTime=Math.min(Math.max(0,audio.duration-0.5),state.time);
+      }
+    },{once:true});
   }
   if(startupRoute?.fullOpen&&state.current){
     // Deep links should have a safe home entry, so closing the player never leaves the app.
