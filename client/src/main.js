@@ -606,7 +606,7 @@ function updateMediaSession(song) {
 function cleanLocalObjectUrl() {
   if (localObjectUrl) { URL.revokeObjectURL(localObjectUrl); localObjectUrl=null; }
 }
-async function playIndex(index, { forceRefresh = false, fromNavigation = false, resumeAt = 0, preserveHistory = false } = {}) {
+async function playIndex(index, { forceRefresh = false, fromNavigation = false, resumeAt = 0, preserveHistory = false, autoplay = true } = {}) {
   const song=state.queue[index];
   if (!song) return;
   cancelPlayerTransition();
@@ -644,6 +644,7 @@ async function playIndex(index, { forceRefresh = false, fromNavigation = false, 
     }
     audioTrackId=song.id;
     audio.volume=state.settings.volume;
+    if(!autoplay){state.buffering=false;state.playing=false;return;}
     try { await audio.play(); }
     catch (error) {
       if (token!==playToken) return;
@@ -1231,7 +1232,7 @@ async function init() {
   if(directRoute?.directSong&&state.current&&!audioTrackId){
     // Prepare the remote audio without autoplay: deep links must be usable after refresh.
     const resumeAt=state.time||0;
-    void playIndex(state.queueIndex,{fromNavigation:true,resumeAt,preserveHistory:true}).then(()=>audio.pause()).catch(()=>{});
+    void playIndex(state.queueIndex,{fromNavigation:true,resumeAt,preserveHistory:true,autoplay:false}).catch(()=>{});
   }
   if(startupRoute?.fullOpen&&state.current){
     // Deep links should have a safe home entry, so closing the player never leaves the app.
