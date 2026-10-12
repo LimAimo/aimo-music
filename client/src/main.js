@@ -1,6 +1,7 @@
 import './ui/lyrics-enhanced.css';
 import './ui/keyboard.css';
 import './ui/ambient.css';
+import {applyAmbientPalette} from './ui/ambient-palette.js';
 import './ui/history.css';
 import { sharedPlaylistTransition, isPlaylistTransitionRunning, interruptPlaylistTransition } from './ui/playlist-transition.js';
 import { animateCoverTransition,cancelPlayerTransition,enablePlayerSwipe } from './ui/player-motion.js';
@@ -187,8 +188,8 @@ function updateAmbient() {
     const image=element.querySelector('.album-art img');
     const src=image?.getAttribute('src')||'';
     // CSS 只使用封面 URL 作背景，不读取跨域图片像素，避免画布污染。
-    if(mode!=='off' && cover && src)element.style.setProperty('--ambient-cover',`url("${src.replaceAll('"','%22')}")`);
-    else element.style.removeProperty('--ambient-cover');
+    if(mode!=='off' && cover && src){element.style.setProperty('--ambient-cover',`url("${src.replaceAll('"','%22')}")`);applyAmbientPalette(src,element);}
+    else {element.style.removeProperty('--ambient-cover');element.dataset.ambientImage='';}
   }
 }
 
