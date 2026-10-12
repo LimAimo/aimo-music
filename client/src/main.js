@@ -963,7 +963,11 @@ async function openSharedContent(data){
     await openPlaylist(data.playlist.id,{providerId:data.playlist.providerId,namespace:data.playlist.namespace});return;
   }
   if((data.type==='song'||data.type==='lyrics')&&data.track){
-    if(data.track.source==='local'){toast('本地音频无法跨设备播放，请在自己的设备打开','error');return;}
+    if(data.track.source==='local'){
+      const local=[...state.queue,...state.favorites,...state.recent,...state.localFiles].find(t=>String(t.id)===String(data.track.id));
+      if(!local){toast('该歌曲是本地文件，只能在保存了原音频的设备上播放','error');return;}
+      navigate('home');playCollection([local],0);openPlayer(data.type==='lyrics'?'lyrics':'cover');return;
+    }
     navigate('home');
     // Opened from a real user click: initialize the stream and lyrics, not just a static player shell.
     playCollection([data.track],0);
