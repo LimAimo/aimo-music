@@ -51,6 +51,7 @@ export function songMenuMarkup(track,lists,isFavorite=false){
   menuButton('album','查看专辑','disc',{disabled:!track.album})
  ].join('');
  const sharing=[
+  menuButton('share','制作分享卡片','external'),
   menuButton('copy','复制歌曲信息','list'),
   menuButton('link','复制歌曲链接','external',{disabled:!isLinkable(track)})
  ].join('');
