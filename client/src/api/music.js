@@ -1,5 +1,5 @@
 /** 网易云兼容接口适配层；所有可能随上游变化的字段仅在此转换。 */
-export const DEFAULT_API_BASE = 'https://music.20110208.xyz';
+export const DEFAULT_API_BASE = 'https://music.20110208.xyz/cm/ncm';
 
 export function safeExternalUrl(value) {
   if (typeof value !== 'string' || !value.trim()) return '';
@@ -77,7 +77,7 @@ export class MusicApi {
     try { response = await this.fetcher(url.toString(), { signal: merged, headers: { Accept: 'application/json' } }); }
     catch (error) {
       if (signal?.aborted) throw error;
-      throw new Error('无法连接音乐 API。请检查网络、服务地址和跨域设置。');
+      throw new Error(globalThis.__AIMO_DEV__ ? `请求 ${url.pathname} 失败：${error?.name || 'Error'}: ${error?.message || String(error)}` : '无法连接音乐 API。请检查网络、服务地址和跨域设置。');
     }
     if (!response.ok) throw new Error(`音乐 API 返回 HTTP ${response.status}`);
     try {

@@ -12,6 +12,9 @@ import {
 } from './ui/render.js';
 
 const app = document.getElementById('app');
+let devTapCount=0;
+let developerMode=sessionStorage.getItem('aimo-dev-mode')==='1';
+globalThis.__AIMO_DEV__=developerMode;
 const audio = document.getElementById('audio-engine');
 const filePicker = document.getElementById('local-file-picker');
 const saved = readPersisted();
@@ -370,7 +373,7 @@ async function runSearch(query = state.searchQuery, { preserveTabs = false } = {
     else state.searchPlaylists = results;
   } catch (error) {
     if (controller.signal.aborted) return;
-    state.searchError = error.message || '请求失败';
+    state.searchError = developerMode ? `${error.name || 'Error'}: ${error.message || String(error)} | API: ${api.activeId} | 来源: ${api.profile(api.activeId)?.base || '未知'}` : (error.message || '请求失败');
   } finally {
     if (searchController === controller && version === searchVersion) { state.searchLoading = false; if (preserveTabs) updateSearchResults(); else renderPage({ restoreFocus: true }); }
   }
@@ -555,6 +558,8 @@ function handleAction(button) {
     }
     case 'settings': state.settingsOpen=true;state.apiView='settings';renderOverlay();document.getElementById('theme-setting')?.focus();break;
     case 'close-settings':state.settingsOpen=false;renderOverlay();break;
+    case 'developer-tap': {devTapCount++;if(devTapCount>=5){developerMode=true;globalThis.__AIMO_DEV__=true;sessionStorage.setItem('aimo-dev-mode','1');toast('开发者模式已启用：错误将显示原始网络异常');renderOverlay();}break;}
+    case 'developer-off': {developerMode=false;globalThis.__AIMO_DEV__=false;sessionStorage.removeItem('aimo-dev-mode');devTapCount=0;renderOverlay();break;}
     case 'open-api-manager':openApiView('manager');break;
     case 'back-to-settings':openApiView('settings');break;
     case 'back-api-manager':openApiView('manager');break;
@@ -802,7 +807,7 @@ audio.addEventListener('error',()=>{
 async function init() {
   window.history.replaceState({view:'home'}, '', window.location.href);
   app.innerHTML=shellMarkup();
-  try {configureApi();} catch {state.settings.apiBase=DEFAULT_API_BASE;state.settings.apiProfiles=[{id:BUILTIN_ID,name:'默认音乐接口',type:'netease',base:DEFAULT_API_BASE,namespace:'netease',enabled:true,rules:{}}];configureApi();}
+  try {configureApi();} catch {state.settings.apiBase=DEFAULT_API_BASE;state.settings.apiProfiles=[{...STATION_NCM_PRESET,id:BUILTIN_ID,name:'默认音乐接口'}];configureApi();}
   applyTheme();audio.volume=Math.max(0,Math.min(1,state.settings.volume));
   renderHeader();renderPage();renderPlayer();
   try {state.localFiles=await loadLocalFiles();if(state.view==='library')renderPage();}catch{ /* 浏览器隐私模式可能不可用 */ }

@@ -96,10 +96,10 @@ export function validateProfile(input) {
 export function sanitizeProfiles(input, legacyBase = DEFAULT_API_BASE) {
   let base = DEFAULT_API_BASE;
   try {base = validateApiBase(legacyBase);} catch { /* 旧数据不合法时恢复默认 */ }
-  const list = Array.isArray(input) ? input : [{ ...DEFAULT_PROFILES[0], ...(base !== DEFAULT_API_BASE ? {type:'netease',base} : {}) }];
+  const list = Array.isArray(input) ? input : [{ ...DEFAULT_PROFILES[0] }];
   const profiles = [], ids = new Set();
   for (const raw of list.slice(0, MAX_PROFILES)) {
-    try {let profile=validateProfile(raw);if(profile.id===BUILTIN_ID&&profile.type==='netease'&&profile.base===DEFAULT_API_BASE)profile={...DEFAULT_PROFILES[0]};if(!ids.has(profile.id)){profiles.push(profile);ids.add(profile.id);}} catch { /* 独立跳过损坏项 */ }
+    try {let profile=validateProfile(raw);if(profile.id===BUILTIN_ID&&profile.type==='netease'&&(/music\\.20110208\\.xyz/.test(profile.base)))profile={...DEFAULT_PROFILES[0]};if(!ids.has(profile.id)){profiles.push(profile);ids.add(profile.id);}} catch { /* 独立跳过损坏项 */ }
   }
   return profiles.length ? profiles : [{...DEFAULT_PROFILES[0],base}];
 }
@@ -204,8 +204,8 @@ export class StationMusicApi extends MusicApi {
     return (data.playlists||[]).map(p=>({id:String(p.id),title:String(p.name||'未命名歌单'),cover:safeExternalUrl(p.pic||''),count:Number(p.trackCount)||0,creator:String(p.creator||''),description:''}));
   }
   async discoverPlaylists(signal) {
-    const data=await this.get('../bootstrap',{},signal);
-    return (data.daily?.daily||[]).slice(0,8).map(song=>({id:String(song.ncm_id),title:String(song.name||'每日推荐'),cover:safeExternalUrl(song.pic||''),count:1,creator:String(song.artists||''),description:''}));
+    const data=await this.get('search',{keywords:'音乐',limit:8,type:1000},signal);
+    return (data.playlists||[]).slice(0,8).map(item=>({id:String(item.id),title:String(item.name||'推荐歌单'),cover:safeExternalUrl(item.pic||''),count:Number(item.trackCount)||0,creator:String(item.creator||''),description:''}));
   }
   async playlistDetail(id,signal) {
     const data=await this.get('playlist/detail',{id},signal);
