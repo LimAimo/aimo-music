@@ -9,7 +9,7 @@ test('已移除面包屑目录入口，保留真实 URL 路由',()=>{
 });
 test('歌曲、歌词、歌单和历史统计均有分享入口',()=>{
  for(const action of ['share-current','share-playlist','share-lyrics','share-stats'])assert.match(render,new RegExp('data-action="'+action+'"'));
- assert.match(file('client/src/ui/collections-view.js'),/song-share/);
+ assert.match(file('client/src/ui/collections-view.js'),/menuButton\('share'/);
 });
 test('卡片编辑器及移动端均有主题样式',()=>{
  for(const selector of ['.share-modal-backdrop','.share-modal-body','.share-control-row','.share-fields','.share-card','.share-modal-actions','.share-btn','.share-public-page','.share-lyric-pick'])assert.ok(css.includes(selector),selector);
