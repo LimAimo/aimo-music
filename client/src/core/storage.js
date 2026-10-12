@@ -2,7 +2,7 @@ import { sanitizeProfiles, BUILTIN_ID } from '../api/providers.js';
 import { validateBindings } from './keyboard.js';
 const KEY = 'aimo-music-v1';
 export const defaultSettings = Object.freeze({
-  theme: 'system', volume: 0.75, quality: 'standard', ambient: 'glow',
+  theme: 'system', volume: 0.75, quality: 'standard', ambient: 'glow', miniTransparency: 55,
   apiBase: 'https://music.20110208.xyz/cm/ncm',
   apiMode: 'auto',
   activeApiId: BUILTIN_ID, apiSwitchMode: 'auto',
@@ -22,6 +22,7 @@ export function sanitizeSettings(candidate) {
   return {
     theme: allowed(raw.theme, ['system','light','dark'], defaultSettings.theme),
     ambient: allowed(raw.ambient,['glow','blur','gradient','single','off'],'glow'),
+    miniTransparency: raw.miniTransparency==null||!Number.isFinite(Number(raw.miniTransparency)) ? 55 : Math.round(Math.max(0,Math.min(100,Number(raw.miniTransparency)))),
     shortcuts:validateBindings(raw.shortcuts),
     quality: allowed(raw.quality, ['standard','higher','exhigh','lossless'], defaultSettings.quality),
     apiMode: allowed(raw.apiMode, ['auto','direct','proxy'], defaultSettings.apiMode),

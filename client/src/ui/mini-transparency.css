@@ -1,0 +1,26 @@
+/* 仅底部迷你播放器使用玻璃通透度，全屏播放页不受影响。 */
+.player-shell {
+ background: color-mix(in srgb,var(--bg) var(--mini-surface-opacity,45%),transparent);
+ backdrop-filter: blur(24px) saturate(1.22);
+ -webkit-backdrop-filter: blur(24px) saturate(1.22);
+}
+.player-shell[data-ambient="blur"]::before {
+ filter: blur(14px) saturate(1.55);
+ transform: scale(1.08);
+ opacity: .66;
+}
+.player-shell[data-ambient="glow"]::before { opacity: .58; }
+.player-shell[data-ambient="gradient"]::before { opacity: .43; }
+.player-shell[data-ambient="single"]::before { opacity: .26; }
+.mini-transparency-control { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; }
+.mini-transparency-heading { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; }
+.mini-transparency-heading output { color: var(--accent); font-size: 13px; font-variant-numeric: tabular-nums; font-weight: 700; }
+.settings-panel .form-section .mini-transparency-control input[type="range"] {
+ display: block; width: 100%; min-height: 28px; height: 28px; padding: 0;
+ border: 0; border-radius: 0; background: transparent; accent-color: var(--accent);
+ cursor: pointer;
+}
+.settings-panel .form-section .mini-transparency-control p { margin: 0; line-height: 1.6; }
+@media (prefers-reduced-motion: reduce) {
+ .player-shell { transition: none; }
+}
