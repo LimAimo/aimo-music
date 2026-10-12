@@ -1,0 +1,20 @@
+.nav-directory{position:relative;z-index:18;max-width:var(--content-max);margin:0 auto 20px;min-height:34px;color:var(--text-secondary);font-size:12px}
+.nav-dir-trail{display:flex;gap:7px;align-items:center;min-width:0;white-space:nowrap;overflow:hidden}
+.nav-dir-launch{display:inline-flex;align-items:center;gap:5px;flex:none;border:1px solid var(--border-soft);background:var(--bg-elevated);color:var(--text-secondary);padding:7px 10px;border-radius:var(--radius-control);min-height:34px;cursor:pointer}
+.nav-dir-launch:hover,.nav-dir-crumb:hover{color:var(--accent)}
+.nav-dir-divider{opacity:.65;flex:none}
+.nav-dir-crumb{border:0;background:none;color:var(--text-secondary);padding:6px 2px;min-height:34px;cursor:pointer;white-space:nowrap}
+.nav-dir-current{color:var(--text-primary);font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.nav-dir-menu{position:absolute;left:0;top:calc(100% + 8px);width:min(340px,calc(100vw - 40px));max-height:min(65dvh,590px);overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-popover);padding:10px;background:var(--bg-elevated);box-shadow:var(--shadow-popover);animation:nav-dir-enter .18s var(--ease) both}
+@keyframes nav-dir-enter{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+.nav-dir-menu-head{display:flex;align-items:center;justify-content:space-between;padding:6px 8px 12px}
+.nav-dir-menu-head strong{font-size:13px;color:var(--text-primary)}
+.nav-dir-menu-head button{width:34px;height:34px;display:grid;place-items:center;background:transparent;border:0;border-radius:8px;color:var(--text-secondary);cursor:pointer}
+.nav-dir-group{padding:8px 0;border-top:1px solid var(--border-soft)}
+.nav-dir-group p{font-size:11px;color:var(--text-tertiary);padding:4px 10px 8px}
+.nav-dir-destination{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:43px;padding:8px 10px;border:0;border-radius:var(--radius-item);text-align:left;background:transparent;color:var(--text-primary);cursor:pointer}
+.nav-dir-destination svg{opacity:.42}
+.nav-dir-destination[aria-current="page"]{color:var(--accent);background:var(--accent-soft);font-weight:600}
+.nav-dir-destination:hover,.nav-dir-menu-head button:hover{background:var(--bg-sunken)}
+@media(max-width:767px){.nav-directory{margin-bottom:12px}.nav-dir-launch{font-size:12px}.nav-dir-menu{width:min(335px,calc(100vw - 32px))}.nav-dir-trail{gap:5px}}
+@media(prefers-reduced-motion:reduce){.nav-dir-menu{animation:none}}
