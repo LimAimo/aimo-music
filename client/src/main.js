@@ -43,7 +43,11 @@ const saved = readPersisted();
 const routeBase=appBase(window.location.pathname);
 window.__AIMO_BASE__=routeBase;
 const directRoute=parseRoute(window.location.href,routeBase);
-const startupRoute=directRoute?normalizeRoute({...readRoute(window.history.state),...directRoute}):readRoute(window.history.state);
+const priorRoute=readRoute(window.history.state);
+const startupRoute=directRoute?.view==='share'?null:directRoute?normalizeRoute({...priorRoute,...directRoute,
+  ...(directRoute.directSong?{view:priorRoute?.view||'home',fullOpen:true,fullPanel:directRoute.fullPanel}:{}),
+  ...(directRoute.view==='playlist'?{playlistProviderId:null}:{}),
+}):priorRoute;
 const startupHadOverlay=normalizeRoute(window.history.state)?.fullOpen===true;
 let restoringStartup=true;
 const state = {
@@ -1130,7 +1134,7 @@ async function init() {
   }
   try {configureApi();} catch {state.settings.apiBase=DEFAULT_API_BASE;state.settings.apiProfiles=[{...STATION_NCM_PRESET,id:BUILTIN_ID,name:'默认音乐接口'}];configureApi();}
   applyTheme();audio.volume=Math.max(0,Math.min(1,state.settings.volume));
-  if(startupRoute){
+  if(startupRoute&&directRoute?.view!=='share'){
     state.view=startupRoute.view==='playlist'?'home':startupRoute.view;
     state.backView=startupRoute.backView;
     state.searchQuery=startupRoute.searchQuery;
@@ -1159,9 +1163,13 @@ async function init() {
     state.current=song;state.queue=[song];state.queueIndex=0;renderPlayer();
   }
   if(startupRoute?.fullOpen&&state.current){
-    // 对 sessionStorage 恢复的播放器新增可回退的一层；原本就在历史中的播放器只需恢复显示。
-    if(!startupHadOverlay)snapshotLocation({overlay:null});
-    openPlayer(startupRoute.fullPanel,{record:!startupHadOverlay});
+    // Deep links should have a safe home entry, so closing the player never leaves the app.
+    if(!startupHadOverlay){
+      const fullUrl=window.location.href;
+      snapshotLocation({overlay:null});
+      window.history.pushState(historyEntry({...routeFromState(state),fullOpen:true,fullPanel:startupRoute.fullPanel}),'',fullUrl);
+    }
+    openPlayer(startupRoute.fullPanel,{record:false});
   }else if(directRoute?.view!=='share')snapshotLocation({overlay:null});
 }
 void init().catch(error => {console.error('AimoMusic 启动失败',error);toast('应用初始化失败，请刷新页面重试。','error');});
