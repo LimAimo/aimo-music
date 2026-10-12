@@ -1,10 +1,12 @@
 # Aimo Music
 
-**当前版本：0.1.2** · [更新日志](CHANGELOG.md) · [音乐项目设计映射](MUSIC_SCOPE.md)
+**当前版本：0.2.0** · [更新日志](CHANGELOG.md) · [音乐项目设计映射](MUSIC_SCOPE.md)
 
-AimoChat 视觉规范下的纯前端网页音乐播放器。无账号、无独立数据库，支持网易云兼容 API 搜索与播放，也能导入自己拥有的本地音频文件。用户收藏、历史与队列保存在当前浏览器，本地文件存放在 IndexedDB。
+AimoChat 视觉规范下的纯前端网页音乐播放器。无账号、无独立数据库，支持网易云兼容接口和自定义 JSON 适配的多 API 管理、故障转移与歌曲来源隔离，也能导入自己拥有的本地音频文件。用户收藏、历史与队列保存在当前浏览器，本地文件存放在 IndexedDB。
 
 ## 已实现
+
+0.2.0 新增多 API 管理中心：在「设置 → 管理音乐 API」里添加、编辑、排序、启用/停用、检测与导入/导出接口；手动、智能和顺序切换策略；跨平台歌曲 ID 隔离；CurrentStation 网易云代理预设。支持公开第三方音乐 API 的声明式 JSON 参数/响应映射，具体使用方式见 [API 管理文档](docs/API_MANAGEMENT.md)。
 
 0.1.2 稳定性修复：大歌单分批补齐曲目、修复手动切歌与随机播放历史、播放成功后才计入最近记录，补齐异常处理与弹层键盘交互。
 
@@ -55,7 +57,8 @@ npm run build
 client/
   index.html              纯前端入口
   src/main.js             界面控制器、播放状态及用户交互
-  src/api/music.js        API 适配 / 数据规范化 / URL 安全
+  src/api/music.js        网易云兼容客户端 / 数据规范化 / URL 安全
+  src/api/providers.js    自定义 API JSON 映射 / 故障转移 / 来源识别
   src/core/lyrics.js      LRC 解析与时间轴
   src/core/queue.js       播放顺序、洗牌历史与最近播放
   src/core/storage.js     localStorage + IndexedDB
@@ -68,6 +71,7 @@ AGENTS.md                 项目规则
 DESIGN_SYSTEM.md          AimoChat 原始现行设计真源
 MUSIC_SCOPE.md            音乐业务适用条款映射
 docs/reference/           用户原始参考文档，不进入页面资源
+docs/API_MANAGEMENT.md   API 配置与 CurrentStation 接口说明
 docs/qa/                  修复验收记录与待验证事项
 .github/workflows/        GitHub Actions 质量检查
 ```
@@ -85,3 +89,7 @@ docs/qa/                  修复验收记录与待验证事项
 ## 验证限制
 
 已提交 `client/package-lock.json` 锁定依赖树，GitHub Actions 使用 `npm ci` 构建。在没有 npm Registry 缓存的离线环境中依然无法下载 Vite，但远端工作流已能安装并构建。在线音乐 API、移动端触控和浏览器焦点仍需要在实际运行环境验证，详见 [质量记录](docs/qa/0.1.2.md)。
+
+## 多 API 与安全限制
+
+默认 API 仍保留旧版兼容地址；CurrentStation 新 `/cm/ncm` 路由根据提供的目录作为**手动启用的预设**，并未在线实测。自定义 JSON 映射不执行代码、不保存 Bearer/管理员凭据，不支持带秘密密钥的接口直连。只有资源命名空间一致时才允许已有歌曲切换备用来源，避免不同平台 ID 碰撞。仅对网络故障、网关不可用等可恢复问题执行降级，不能绕过版权、会员或上游鉴权。

@@ -58,3 +58,32 @@ body.overlay-open, body.modal-open { overflow: hidden; }
   .seg-item { min-height: 44px; }
   .segmented { min-height: 48px; }
 }
+/* API 管理：列表与规则编辑同屏清晰呈现，底部动作固定。 */
+.settings-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.api-open-manager { align-self: flex-start; margin-top: 4px; }
+.api-manager-fields { display: block; }
+.api-manager-fields .form-section { padding-top: 12px; }
+.api-save-row { margin: 0 0 14px; }
+.api-section-heading { display: flex; justify-content: space-between; align-items: baseline; margin: 10px 0; }
+.api-section-heading span, .api-profile-state, .api-profile-sub, .api-profile-address { color: var(--text-secondary); font-size: 12px; }
+.api-profile-row { background: var(--bg-elevated); border: 1px solid var(--border-soft); border-radius: 14px; padding: 14px; margin: 10px 0; }
+.api-profile-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.api-profile-head strong { font-size: 14px; }
+.api-profile-address { overflow-wrap: anywhere; margin-top: 6px; }
+.api-profile-sub { margin-top: 3px; }
+.api-profile-actions { display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 1px; margin-top: 4px; }
+.api-profile-actions .text-action { font-size: 12px; min-height: 34px; }
+.api-profile-actions .text-action:disabled { opacity: .3; }
+.api-profile-status { font-size: 12px; color: var(--text-secondary); }
+.api-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 0; }
+.api-toolbar .button { font-size: 13px; }
+.api-transfer { border-top: 1px solid var(--border-soft); padding: 14px 0; }
+.api-transfer summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+.api-transfer textarea, #profile-rules { width: 100%; min-height: 110px; resize: vertical; padding: 12px; font: 12px/1.5 ui-monospace, Consolas, monospace; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-elevated); color: var(--text-primary); }
+#profile-rules { min-height: 220px; }
+.api-transfer p, .api-hint, .api-switch-note { font-size: 12px; line-height: 1.7; color: var(--text-secondary); }
+.api-transfer .button { margin-top: 6px; }
+.api-check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.api-check input { width: 16px; height: 16px; min-height: 0; }
+#custom-rules-block[hidden] { display: none; }
+.settings-panel { width: min(100%, 590px); }

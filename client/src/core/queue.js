@@ -1,3 +1,4 @@
+import { trackIdentity } from '../api/providers.js';
 /** 单曲循环只拦截自然播放结束；手动下一首不受单曲循环影响。 */
 export function nextQueueIndex({ queue, queueIndex, repeat, shuffle }, direction = 1, random = Math.random, reason = 'manual') {
   if (!queue.length) return -1;
@@ -45,5 +46,5 @@ export function appendToQueue(queue, track) {
 }
 
 export function pushRecent(recent, track) {
-  return [track, ...recent.filter(t => t.id !== track.id)].slice(0, 60);
+  return [track, ...recent.filter(t => trackIdentity(t) !== trackIdentity(track))].slice(0, 60);
 }

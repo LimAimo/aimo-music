@@ -1,8 +1,10 @@
+import { sanitizeProfiles, BUILTIN_ID } from '../api/providers.js';
 const KEY = 'aimo-music-v1';
 export const defaultSettings = Object.freeze({
   theme: 'system', volume: 0.75, quality: 'standard',
   apiBase: 'https://music.20110208.xyz',
   apiMode: 'auto',
+  activeApiId: BUILTIN_ID, apiSwitchMode: 'auto',
 });
 
 const allowed = (value, values, fallback) => values.includes(value) ? value : fallback;
@@ -21,6 +23,9 @@ export function sanitizeSettings(candidate) {
     quality: allowed(raw.quality, ['standard','higher','exhigh','lossless'], defaultSettings.quality),
     apiMode: allowed(raw.apiMode, ['auto','direct','proxy'], defaultSettings.apiMode),
     apiBase,
+    apiProfiles: sanitizeProfiles(raw.apiProfiles, apiBase),
+    activeApiId: typeof raw.activeApiId === 'string' ? raw.activeApiId : BUILTIN_ID,
+    apiSwitchMode: allowed(raw.apiSwitchMode, ['auto','manual','priority'], 'auto'),
     volume: raw.volume == null || !Number.isFinite(volume) ? defaultSettings.volume : Math.min(1,Math.max(0,volume)),
   };
 }

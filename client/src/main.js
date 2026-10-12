@@ -1,4 +1,5 @@
-import { MusicApi, DEFAULT_API_BASE, validateApiBase } from './api/music.js';
+import { MusicApi, DEFAULT_API_BASE } from './api/music.js';
+import { ManagedMusicApi, CustomMusicApi, BUILTIN_ID, STATION_NCM_PRESET, EXAMPLE_RULES, validateProfile, importProfiles, exportProfiles, MAX_PROFILES, trackIdentity } from './api/providers.js';
 import { parseLrc, activeLyricIndex, formatTime } from './core/lyrics.js';
 import { readPersisted, savePersisted, saveLocalFile, loadLocalFiles, loadLocalBlob, removeLocalFile } from './core/storage.js';
 import { nextQueueIndex, appendToQueue, pushRecent, ShuffleHistory } from './core/queue.js';
@@ -25,8 +26,9 @@ const state = {
   libraryTab: 'favorites', localFiles: [],
   playlistId: null, playlist: null, playlistLoading: false, playlistError: '',
   lyrics: [], lyricsLoading: false, lyricsError: '', activeLyric: -1,
+  apiView: 'settings', apiEditingId: null, apiDraft: null, apiFallback: null, playlistProviderId: null, playlistNamespace: null,
 };
-const api = new MusicApi();
+const api = new ManagedMusicApi();
 let searchController = null;
 let playlistController = null;
 let playController = null;
@@ -51,8 +53,8 @@ function actualApiMode(settings = state.settings) {
   return import.meta.env?.DEV ? 'proxy' : 'direct';
 }
 function configureApi() {
-  const base = actualApiMode() === 'proxy' ? '/music-api' : state.settings.apiBase || DEFAULT_API_BASE;
-  api.setBase(base);
+  api.configure({...state.settings, apiMode: actualApiMode()});
+  state.apiFallback = api.lastFallback;
 }
 function persist() { savePersisted(state); }
 function toast(message, kind = 'normal') {
@@ -62,7 +64,7 @@ function toast(message, kind = 'normal') {
   slot.innerHTML = `<div class="toast ${kind==='error'?'toast--error':''}">${escapeHtml(message)}</div>`;
   toastTimer = setTimeout(() => { slot.innerHTML = ''; }, 4300);
 }
-function isFavorite(song) { return state.favorites.some(s => s.id === song.id); }
+function isFavorite(song) { return state.favorites.some(s => trackIdentity(s) === trackIdentity(song)); }
 function currentTheme() {
   return state.settings.theme === 'system' ? (themeMedia?.matches ? 'dark' : 'light') : state.settings.theme;
 }
@@ -134,7 +136,7 @@ function renderPage({ restoreFocus = false } = {}) {
 function renderPlayer() { document.getElementById('player-slot').innerHTML = playerMarkup(state); updateProgress(); }
 function refreshRows() {
   document.querySelectorAll('#main-view .song-row').forEach(row => {
-    const isCurrent = row.dataset.songId === state.current?.id;
+    const isCurrent = row.dataset.songId === state.current?.id && (row.dataset.namespace || 'netease') === (state.current?.source === 'local' ? 'local' : state.current?.providerNamespace || 'netease');
     row.classList.toggle('is-current', isCurrent);
     const number = row.querySelector('.song-index');
     const button = row.querySelector('[data-action="play-row"]');
@@ -143,7 +145,7 @@ function refreshRows() {
       : String(Number(button.dataset.index) + 1).padStart(2, '0');
   });
   document.querySelectorAll('#main-view [data-action="favorite"]').forEach(button => {
-    const favorite = state.favorites.some(song => song.id === button.dataset.id);
+    const favorite = state.favorites.some(song => song.id === button.dataset.id && (song.source==='local'?'local':song.providerNamespace||'netease') === (button.dataset.namespace || 'netease'));
     button.classList.toggle('is-favorite', favorite);
     button.setAttribute('aria-pressed', String(favorite));
     button.setAttribute('aria-label', favorite ? '取消喜欢' : '喜欢');
@@ -336,7 +338,7 @@ async function loadFeatured() {
   state.featuredLoading = true;
   updateFeatured();
   try {
-    state.featured = await api.discoverPlaylists();
+    state.featured = await api.discoverPlaylists();state.apiFallback=api.lastFallback;
     state.featuredFailed = false;
   } catch {
     // 首页推荐不可用不是致命错误，搜索与本地播放器仍可使用。
@@ -363,6 +365,7 @@ async function runSearch(query = state.searchQuery, { preserveTabs = false } = {
       ? await api.searchSongs(query, controller.signal)
       : await api.searchPlaylists(query, controller.signal);
     if (version !== searchVersion || controller.signal.aborted) return;
+    state.apiFallback=api.lastFallback;
     if (selectedType === 'songs') state.searchSongs = results;
     else state.searchPlaylists = results;
   } catch (error) {
@@ -372,14 +375,14 @@ async function runSearch(query = state.searchQuery, { preserveTabs = false } = {
     if (searchController === controller && version === searchVersion) { state.searchLoading = false; if (preserveTabs) updateSearchResults(); else renderPage({ restoreFocus: true }); }
   }
 }
-async function openPlaylist(id, { record = true } = {}) {
+async function openPlaylist(id, { record = true, providerId = null, namespace = null } = {}) {
   const backView = state.view === 'search' ? 'search' : state.view === 'library' ? 'library' : 'home';
-  if (record) window.history.pushState({view:'playlist',id}, '', window.location.href);
-  state.view='playlist'; state.backView=backView; state.playlistId=id; state.playlistLoading=true; state.playlistError=''; state.playlist=null;
+  if (record) window.history.pushState({view:'playlist',id,providerId,namespace}, '', window.location.href);
+  state.view='playlist'; state.backView=backView; state.playlistId=id; state.playlistProviderId=providerId; state.playlistNamespace=namespace; state.playlistLoading=true; state.playlistError=''; state.playlist=null;
   playlistController?.abort();
   const controller = new AbortController(); playlistController=controller;
   renderHeader(); renderPage(); window.scrollTo({top:0,behavior:'instant'});
-  try { state.playlist = await api.playlistDetail(id,controller.signal); }
+  try { state.playlist = await api.playlistDetail(id,controller.signal,state.playlistProviderId,state.playlistNamespace); state.apiFallback=api.lastFallback; }
   catch (err) { if (controller.signal.aborted) return; state.playlistError=err.message || '网络请求失败'; }
   finally { if (playlistController===controller) { state.playlistLoading=false; renderPage(); } }
 }
@@ -389,7 +392,7 @@ async function loadLyricsFor(song) {
   state.lyricsLoading=true; renderOverlay();
   const token=playToken;
   try {
-    const data=await api.lyrics(song.id,playController?.signal);
+    const data=await api.lyrics(song.id,playController?.signal,song.providerId,song.providerNamespace);
     if (token!==playToken) return;
     state.lyrics=parseLrc(data.original,data.translation);
   } catch (error) {
@@ -437,7 +440,7 @@ async function playIndex(index, { forceRefresh = false, fromNavigation = false }
       if (!blob) throw new Error('找不到本地音频文件，请重新导入。');
       if (token!==playToken) return;
       url=URL.createObjectURL(blob); localObjectUrl=url;
-    } else url=await api.audioUrl(song.id,state.settings.quality,playController.signal);
+    } else url=await api.audioUrl(song.id,state.settings.quality,playController.signal,song.providerId,song.providerNamespace);
     if (token!==playToken) { if (song.source==='local' && localObjectUrl===url) cleanLocalObjectUrl(); return; }
     audio.src=url;
     audioTrackId=song.id;
@@ -486,16 +489,16 @@ function previous() {
 }
 function toggleFavorite(song) {
   if (!song) return;
-  state.favorites=isFavorite(song) ? state.favorites.filter(s=>s.id!==song.id) : [song,...state.favorites].slice(0,2000);
+  state.favorites=isFavorite(song) ? state.favorites.filter(s=>trackIdentity(s)!==trackIdentity(song)) : [song,...state.favorites].slice(0,2000);
   persist(); if (state.view === 'library') updateLibraryContent(); else refreshRows(); renderOverlay();
   toast(isFavorite(song)?'已加入我喜欢的音乐':'已取消收藏');
 }
-function findSong(context,id) {
+function findSong(context,id,namespace) {
   const groups={
     searchSongs:state.searchSongs, favorites:state.favorites, recent:state.recent,
     local:state.localFiles,playlist:state.playlist?.tracks||[],
   };
-  return (groups[context]||[]).find(track=>track.id===id);
+  return (groups[context]||[]).find(track=>track.id===id && (!namespace || (track.source==='local'?'local':track.providerNamespace||'netease')===namespace));
 }
 async function importFiles(files) {
   const accepted=[...files].filter(file=>file.type.startsWith('audio/')||/\.(mp3|m4a|aac|flac|ogg|wav|opus)$/i.test(file.name));
@@ -550,13 +553,29 @@ function handleAction(button) {
     case 'cycle-theme': {
       state.settings.theme=currentTheme()==='dark'?'light':'dark';applyTheme();persist();renderHeader();break;
     }
-    case 'settings': state.settingsOpen=true;renderOverlay();document.getElementById('theme-setting')?.focus();break;
+    case 'settings': state.settingsOpen=true;state.apiView='settings';renderOverlay();document.getElementById('theme-setting')?.focus();break;
     case 'close-settings':state.settingsOpen=false;renderOverlay();break;
-    case 'test-api':void testApi();break;
+    case 'open-api-manager':openApiView('manager');break;
+    case 'back-to-settings':openApiView('settings');break;
+    case 'back-api-manager':openApiView('manager');break;
+    case 'add-api':openApiView('editor',null,{id:`api-${Date.now()}`,name:'新音乐 API',type:'custom',base:'https://example.com/v1',namespace:`api_${Date.now()}`,enabled:true,rules:structuredClone(EXAMPLE_RULES)});break;
+    case 'add-station-api':{
+      if(state.settings.apiProfiles.some(p=>p.id===STATION_NCM_PRESET.id)){toast('已添加 CurrentStation 代理预设');break;}
+      openApiView('editor',null,{...STATION_NCM_PRESET});break;
+    }
+    case 'edit-api':openApiView('editor',id);break;
+    case 'toggle-api':changeProfiles(list=>list.map(p=>p.id===id?{...p,enabled:!p.enabled}:p));break;
+    case 'move-api-up':reorderProfile(id,-1);break;
+    case 'move-api-down':reorderProfile(id,1);break;
+    case 'delete-api':void removeProfile(id);break;
+    case 'test-profile':void testManagedProfile(id);break;
+    case 'test-api-draft':void testApiDraft();break;
+    case 'export-api':downloadProfiles();break;
+    case 'import-api':void applyImportedProfiles();break;
     case 'suggest-search':state.view='search';state.searchType='songs';renderHeader();void runSearch(button.dataset.query);break;
     case 'retry-search':void runSearch();break;
     case 'retry-featured':void loadFeatured();break;
-    case 'open-playlist':void openPlaylist(id);break;
+    case 'open-playlist':void openPlaylist(id,{providerId:button.dataset.providerId||null,namespace:button.dataset.namespace||null});break;
     case 'retry-playlist':void openPlaylist(state.playlistId);break;
     case 'play-playlist':playCollection(state.playlist?.tracks||[],0);break;
     case 'play-row': {
@@ -564,10 +583,10 @@ function handleAction(button) {
       if (list[index]) playCollection(list,index);
       break;
     }
-    case 'favorite':toggleFavorite(findSong(context,id));break;
+    case 'favorite':toggleFavorite(findSong(context,id,button.dataset.namespace));break;
     case 'favorite-current':toggleFavorite(state.current);break;
     case 'queue-add': {
-      const song=findSong(context,id);
+      const song=findSong(context,id,button.dataset.namespace);
       if (!song)return;
       state.queue=appendToQueue(state.queue,song);shuffleHistory.reset(state.queue,state.queueIndex);persist();renderOverlay();toast('已加入播放队列');break;
     }
@@ -602,21 +621,76 @@ function handleAction(button) {
     case 'seek-lyric':seek(Number(button.dataset.time));break;
   }
 }
-async function testApi() {
-  const result=document.getElementById('api-test-result');
-  const form=document.getElementById('settings-form');
-  if(!result||!form)return;
-  let candidate;
+function openApiView(view,id=null,draft=null) {
+  state.apiView=view;
+  state.apiEditingId=id;
+  state.apiDraft=view==='editor'?(draft||state.settings.apiProfiles.find(p=>p.id===id)||null):null;
+  document.getElementById('settings-overlay')?.remove();
+  renderOverlay();
+}
+function changeProfiles(transform) {
+  let next;
   try {
-    const data=new FormData(form);
-    const mode=data.get('apiMode')==='auto'?(import.meta.env?.DEV?'proxy':'direct'):data.get('apiMode');
-    candidate=new MusicApi(mode==='proxy'?'/music-api':validateApiBase(String(data.get('apiBase'))));
-  } catch(err) {result.textContent=err.message;return;}
-  result.textContent='正在检测接口……';
+    next=transform(state.settings.apiProfiles.map(p=>({...p})));
+    if(!Array.isArray(next) || !next.length || next.length>MAX_PROFILES)throw Error('请保留 1 至 20 个 API');
+    next=next.map(validateProfile);
+    if(!next.some(p=>p.enabled))throw Error('至少保留一个已启用的接口');
+  } catch(err) {toast(err.message||'配置错误','error');return false;}
+  state.settings.apiProfiles=next;
+  if(!next.some(p=>p.id===state.settings.activeApiId&&p.enabled))state.settings.activeApiId=next.find(p=>p.enabled).id;
+  configureApi();persist();openApiView('manager');
+  state.featured=[];state.featuredLoading=false;state.searchSongs=[];state.searchPlaylists=[];
+  toast('接口配置已保存');return true;
+}
+function reorderProfile(id, offset) {
+  changeProfiles(list=>{const i=list.findIndex(p=>p.id===id);const j=i+offset;if(i<0||j<0||j>=list.length) return list;[list[i],list[j]]=[list[j],list[i]];return list;});
+}
+async function removeProfile(id) {
+  const profile=state.settings.apiProfiles.find(p=>p.id===id);
+  if(!profile)return;
+  const ok=await showConfirmDialog('删除音乐 API',`确定删除「${profile.name}」吗？保存在音乐库里的该来源歌曲不会被删除，但如果找不到同命名空间的备用接口，可能无法播放。`,{confirm:'删除',destructive:true});
+  if(ok)changeProfiles(list=>list.filter(p=>p.id!==id));
+}
+function draftFromForm() {
+  const form=document.getElementById('api-profile-form');
+  if(!form?.reportValidity()) throw Error('请填写完整的接口信息');
+  const data=new FormData(form);
+  const type=String(data.get('type'));
+  let rules={};
+  if(type==='custom'){
+    try{rules=JSON.parse(String(data.get('rules')));}catch{throw Error('自定义规则不是有效 JSON');}
+  }
+  return validateProfile({id:String(data.get('id')),name:String(data.get('name')),base:String(data.get('base')),type,namespace:String(data.get('namespace')),enabled:data.has('enabled'),rules});
+}
+async function testManagedProfile(id) {
+  const slot=document.getElementById(`api-status-${CSS.escape(id)}`);
+  if(!slot)return;
+  slot.textContent='正在检测歌曲搜索……';
+  try {const res=await api.testProfile(id);slot.textContent=`搜索接口有效（返回 ${res.count} 首，约 ${res.latency} 毫秒）。播放地址仍须试听验证。`;}
+  catch(err){slot.textContent=`失败：${err.message}`;}
+}
+async function testApiDraft() {
+  const slot=document.getElementById('api-test-result');if(!slot)return;
+  let profile;try{profile=draftFromForm();}catch(err){slot.textContent=err.message;return;}
+  slot.textContent='正在检测搜索……';
   try {
-    await candidate.get('search',{keywords:'音乐',limit:1,type:1});
-    result.textContent='接口连接成功。播放地址及跨域音频仍需实际歌曲验证。';
-  }catch(err){result.textContent=`连接失败：${err.message}`;}
+    const candidate=profile.type==='custom'?new CustomMusicApi(profile):new MusicApi(profile.base);
+    const tracks=await candidate.searchSongs('音乐');
+    slot.textContent=`搜索请求成功，返回 ${tracks.length} 首歌曲。音频链接和跨域限制需要另外验证。`;
+  }catch(err){slot.textContent=`测试失败：${err.message}`;}
+}
+async function applyImportedProfiles() {
+  const target=document.getElementById('api-import-json');let profiles;
+  try{profiles=importProfiles(target?.value||'');if(!profiles.some(p=>p.enabled))throw Error('导入列表至少需要一个已启用的接口');}
+  catch(err){toast(err.message,'error');return;}
+  const okay=await showConfirmDialog('导入 API 配置',`将使用导入的 ${profiles.length} 个接口替换当前列表。建议先导出配置备份。`,{confirm:'导入'});
+  if(okay)changeProfiles(()=>profiles);
+}
+function downloadProfiles() {
+  const blob=new Blob([exportProfiles(state.settings.apiProfiles)],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='AimoMusic-API-配置.json';document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 
 app.addEventListener('click',e=>{
@@ -629,12 +703,27 @@ app.addEventListener('submit',e=>{
     e.preventDefault();
     void runSearch(new FormData(e.target).get('q'));
   }
+  if(e.target.id==='api-manager-form') {
+    e.preventDefault();
+    const data=new FormData(e.target);
+    state.settings.apiSwitchMode=String(data.get('apiSwitchMode'));
+    state.settings.activeApiId=String(data.get('activeApiId'));
+    configureApi();persist();toast('切换策略已保存');openApiView('manager');
+  }
+  if(e.target.id==='api-profile-form') {
+    e.preventDefault();
+    let profile;try{profile=draftFromForm();}catch(err){toast(err.message,'error');return;}
+    changeProfiles(list=>{
+      const original=state.apiEditingId;
+      if(original){const index=list.findIndex(p=>p.id===original);if(index<0)throw Error('原 API 不存在');list[index]=profile;}
+      else {if(list.some(p=>p.id===profile.id))throw Error('接口 ID 已存在');list.push(profile);}
+      return list;
+    });
+  }
   if(e.target.id==='settings-form') {
     e.preventDefault();
     const data=new FormData(e.target);
-    let base;
-    try {base=validateApiBase(String(data.get('apiBase')));} catch(err){toast(err.message,'error');return;}
-    state.settings={...state.settings,theme:String(data.get('theme')),quality:String(data.get('quality')),apiMode:String(data.get('apiMode')),apiBase:base};
+    state.settings={...state.settings,theme:String(data.get('theme')),quality:String(data.get('quality')),apiMode:String(data.get('apiMode'))};
     try {configureApi();}catch(err){toast(err.message,'error');return;}
     applyTheme();persist();state.settingsOpen=false;renderHeader();renderOverlay();toast('设置已保存');
     if(state.view==='home')loadFeatured();
@@ -654,6 +743,7 @@ app.addEventListener('input',e=>{
   }
 });
 app.addEventListener('change',e=>{
+  if(e.target.id==='profile-type')document.getElementById('custom-rules-block').hidden=e.target.value!=='custom';
   if(e.target.id==='seek-bar'||e.target.id==='full-seek')seek((audio.duration||state.duration||0)*Number(e.target.value)/1000);
 });
 app.addEventListener('wheel',e=>{if(e.target.closest('#lyric-viewport'))lyricScrollSuspendUntil=Date.now()+5000;},{passive:true});
@@ -681,7 +771,7 @@ document.addEventListener('keydown',e=>{
 });
 window.addEventListener('popstate', event => {
   const page=event.state;
-  if (page?.view === 'playlist' && page.id) void openPlaylist(page.id, {record:false});
+  if (page?.view === 'playlist' && page.id) void openPlaylist(page.id, {record:false,providerId:page.providerId||null,namespace:page.namespace||null});
   else navigate(['home','search','library'].includes(page?.view) ? page.view : 'home', {record:false});
 });
 window.addEventListener('scroll',()=>document.getElementById('app-header')?.classList.toggle('is-scrolled',window.scrollY>12),{passive:true});
@@ -712,7 +802,7 @@ audio.addEventListener('error',()=>{
 async function init() {
   window.history.replaceState({view:'home'}, '', window.location.href);
   app.innerHTML=shellMarkup();
-  try {configureApi();} catch {state.settings.apiBase=DEFAULT_API_BASE;state.settings.apiMode='direct';configureApi();}
+  try {configureApi();} catch {state.settings.apiBase=DEFAULT_API_BASE;state.settings.apiProfiles=[{id:BUILTIN_ID,name:'默认音乐接口',type:'netease',base:DEFAULT_API_BASE,namespace:'netease',enabled:true,rules:{}}];configureApi();}
   applyTheme();audio.volume=Math.max(0,Math.min(1,state.settings.volume));
   renderHeader();renderPage();renderPlayer();
   try {state.localFiles=await loadLocalFiles();if(state.view==='library')renderPage();}catch{ /* 浏览器隐私模式可能不可用 */ }
