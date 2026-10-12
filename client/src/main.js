@@ -1,3 +1,4 @@
+import './ui/ambient.css';
 import './ui/history.css';
 import { sharedPlaylistTransition, isPlaylistTransitionRunning, interruptPlaylistTransition } from './ui/playlist-transition.js';
 import { recordPlayHistory, readPlayHistory, clearPlayHistory } from './core/history.js';
@@ -168,7 +169,21 @@ function renderPage({ restoreFocus = false } = {}) {
     if (typeof cursor === 'number') input?.setSelectionRange(cursor, cursor);
   }
 }
-function renderPlayer() { document.getElementById('player-slot').innerHTML = playerMarkup(state); updateProgress(); }
+
+function updateAmbient() {
+  const cover=state.current?.cover;
+  for(const element of document.querySelectorAll('.player-shell,#full-player')){
+    const mode=state.settings.ambient||'glow';
+    element.dataset.ambient=mode;
+    const image=element.querySelector('.album-art img');
+    const src=image?.getAttribute('src')||'';
+    // CSS 只使用封面 URL 作背景，不读取跨域图片像素，避免画布污染。
+    if(mode!=='off' && cover && src)element.style.setProperty('--ambient-cover',`url("${src.replaceAll('"','%22')}")`);
+    else element.style.removeProperty('--ambient-cover');
+  }
+}
+
+function renderPlayer() { document.getElementById('player-slot').innerHTML = playerMarkup(state); updateProgress(); updateAmbient(); }
 function refreshRows() {
   document.querySelectorAll('#main-view .song-row').forEach(row => {
     const isCurrent = row.dataset.songId === state.current?.id && (row.dataset.namespace || 'netease') === (state.current?.source === 'local' ? 'local' : state.current?.providerNamespace || 'netease');
@@ -252,7 +267,7 @@ function renderOverlay() {
       slot.querySelector('#full-player.is-leaving')?.remove();
       slot.insertAdjacentHTML('beforeend', fullPlayerMarkup(state));
       full = slot.querySelector('#full-player:not(.is-leaving)');
-      if (full) { full.dataset.trackId = trackId; recreatedFull = true; }
+      if (full) { full.dataset.trackId = trackId; recreatedFull = true; updateAmbient(); }
     }
     if (full) {
       const lyrics = full.querySelector('#lyric-viewport');
@@ -805,9 +820,9 @@ app.addEventListener('submit',e=>{
   if(e.target.id==='settings-form') {
     e.preventDefault();
     const data=new FormData(e.target);
-    state.settings={...state.settings,theme:String(data.get('theme')),quality:String(data.get('quality')),apiMode:String(data.get('apiMode'))};
+    state.settings={...state.settings,theme:String(data.get('theme')),ambient:String(data.get('ambient')||'glow'),quality:String(data.get('quality')),apiMode:String(data.get('apiMode'))};
     try {configureApi();}catch(err){toast(err.message,'error');return;}
-    applyTheme();persist();state.settingsOpen=false;renderHeader();renderOverlay();toast('设置已保存');
+    applyTheme();persist();state.settingsOpen=false;renderHeader();renderPlayer();renderOverlay();updateAmbient();toast('设置已保存');
     if(state.view==='home')loadFeatured();
   }
 });
