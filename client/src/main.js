@@ -746,6 +746,11 @@ function handleAction(button) {
         if(state.view==='library'){
           snapshotLocation();renderPage();restoreDirectoryTab();
         }else{navigate('library');restoreDirectoryTab();}
+      }else if(view==='library'&&state.view==='library'){
+        state.libraryTab='favorites';
+        state.selectedLocalPlaylist=null;
+        state.collectionEdit=false;
+        snapshotLocation();renderPage();
       }else navigate(view);
       renderDirectory();
       break;
@@ -1129,8 +1134,10 @@ async function init() {
   try {state.localFiles=await loadLocalFiles();if(state.view==='library')renderPage();}catch{ /* 浏览器隐私模式可能不可用 */ }
   try{await collections.load();}catch(err){toast('歌单存储不可用：'+err.message,'error');}
   if(startupRoute?.view==='playlist'){
-    await openPlaylist(startupRoute.playlistId,{record:false,providerId:startupRoute.playlistProviderId,
-      namespace:startupRoute.playlistNamespace,backView:startupRoute.backView});
+    // 网络可能已断开；不能等待在线歌单请求才完成应用初始化和播放器恢复。
+    void openPlaylist(startupRoute.playlistId,{record:false,providerId:startupRoute.playlistProviderId,
+      namespace:startupRoute.playlistNamespace,backView:startupRoute.backView})
+      .catch(error=>toast('恢复歌单失败：'+error.message,'error'));
   }else if(state.view==='search'&&state.searchQuery){
     void runSearch(state.searchQuery,{preserveTabs:true});
   }
