@@ -32,7 +32,7 @@ export function mountCollections({app,state,render,toast,confirm,findSong,playCo
   if(a==='close-menu'){close();return;}
   if(a.startsWith('song-')){const t=track;if(!t)return;
    if(a==='song-add'){const p=state.localPlaylists.find(x=>x.id===id&&!x.smart);if(p){if(p.tracks.some(x=>trackIdentity(x)===trackIdentity(t)))toast('该歌曲已在歌单中');else{await save({...p,tracks:[...p.tracks,t]});toast('已加入歌单');}}}
-   else if(a==='song-copy'||a==='song-link'){const value=a==='song-copy'?[t.title,t.artist,t.album].filter(Boolean).join(' - '):String(t.url||t.link||(t.source==='remote'&&(t.providerNamespace||'netease')==='netease'&&/^\\d+$/.test(String(t.id))?'https://music.163.com/#/song?id='+encodeURIComponent(t.id):''));if(!value||a==='song-link'&&!/^https?:\/\//i.test(value))toast('这个音乐来源没有可用链接');else try{await navigator.clipboard.writeText(value);toast('已复制');}catch{toast('复制失败');}}
+   else if(a==='song-copy'||a==='song-link'){const value=a==='song-copy'?[t.title,t.artist,t.album].filter(Boolean).join(' - '):String(t.url||t.link||(t.source==='remote'&&(t.providerNamespace||'netease')==='netease'&&/^\d+$/.test(String(t.id))?'https://music.163.com/#/song?id='+encodeURIComponent(t.id):''));if(!value||a==='song-link'&&!/^https?:\/\//i.test(value))toast('这个音乐来源没有可用链接');else try{await navigator.clipboard.writeText(value);toast('已复制');}catch{toast('复制失败');}}
    else if(a==='song-info'){
     const info=document.createElement('div');info.className='feat-menu-backdrop';
     const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
