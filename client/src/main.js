@@ -4,6 +4,9 @@ import './ui/ambient.css';
 import './ui/mini-transparency.css';
 import {applyAmbientPalette} from './ui/ambient-palette.js';
 import './ui/history.css';
+import './ui/navigation.css';
+import {directoryMarkup} from './ui/navigation-view.js';
+import {normalizeRoute,readRoute,saveRoute,routeFromState,historyEntry,sameLocation} from './core/navigation.js';
 import { sharedPlaylistTransition, isPlaylistTransitionRunning, interruptPlaylistTransition } from './ui/playlist-transition.js';
 import { animateCoverTransition,cancelPlayerTransition,enablePlayerSwipe } from './ui/player-motion.js';
 import './ui/player-motion.css';
@@ -35,9 +38,10 @@ installNetworkDebug();
 const audio = document.getElementById('audio-engine');
 const filePicker = document.getElementById('local-file-picker');
 const saved = readPersisted();
+const startupRoute=readRoute(window.history.state);
 const state = {
   ...saved,
-  view: 'home', backView: 'home', showEasterEgg: false,
+  view: 'home', backView: 'home', showEasterEgg: false, navigationMenuOpen:false, playlistTitle:'',
   current: saved.queue[saved.queueIndex] || null,
   playing: false, buffering: false, time: 0, duration: 0,
   fullOpen: false, fullPanel: 'cover', queueOpen: false, settingsOpen: false,
@@ -99,6 +103,26 @@ function applyTheme() {
   document.documentElement.dataset.theme = theme;
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#171613' : '#F2EDE4');
 }
+function snapshotLocation({push=false,overlay=state.fullOpen?'player':null}={}){
+  const route=routeFromState(state,{overlay});
+  try{
+    const entry=historyEntry(route);
+    if(push)window.history.pushState(entry,'',window.location.href);
+    else window.history.replaceState(entry,'',window.location.href);
+  }catch{/* 浏览器受限时仍保留站内导航。 */}
+  saveRoute(route);
+}
+function renderDirectory(){
+  const main=document.getElementById('main-view');
+  if(!main)return;
+  const existing=main.querySelector(':scope > .nav-directory');
+  if(existing)existing.outerHTML=directoryMarkup(state);
+  else main.insertAdjacentHTML('afterbegin',directoryMarkup(state));
+}
+function restoreDirectoryTab(){
+  if(state.view==='library'&&state.libraryTab==='history'&&!state.historyEntries.length)void loadHistoryPage(true);
+  if(state.view==='library'&&state.libraryTab==='playlists')void collections.refresh();
+}
 function renderHeader() {
   const slot = document.getElementById('header-slot');
   const tab = state.view === 'playlist' ? state.backView : state.view;
@@ -155,6 +179,7 @@ function renderPage({ restoreFocus = false } = {}) {
     : state.view === 'library' ? libraryMarkup(state)
     : state.view === 'playlist' ? playlistMarkup(state)
     : homeMarkup(state);
+  renderDirectory();
   const page = main.querySelector('.page');
   if (page && pageTransitionDirection) {
     page.classList.add(pageTransitionDirection > 0 ? 'page-enter-from-right' : 'page-enter-from-left');
@@ -164,11 +189,16 @@ function renderPage({ restoreFocus = false } = {}) {
   if (segmented) bindPage = bindSegmentedControl(segmented, value => {
     if (state.view === 'search' && value !== state.searchType) {
       state.searchType = value;
+      snapshotLocation();
       updateSearchResults();
       if (value === 'playlists' && state.searchQuery && !state.searchPlaylists.length) void runSearch(state.searchQuery, { preserveTabs: true });
       if (value === 'songs' && state.searchQuery && !state.searchSongs.length) void runSearch(state.searchQuery, { preserveTabs: true });
     } else if (state.view === 'library' && value !== state.libraryTab) {
       state.libraryTab = value;
+      state.selectedLocalPlaylist=null;
+      state.collectionEdit=false;
+      snapshotLocation();
+      renderDirectory();
       updateLibraryContent({ animate: true });
       if(value==='history'&&!state.historyEntries.length)void loadHistoryPage(true);
       if(value==='playlists')void collections.refresh();
@@ -426,6 +456,9 @@ function updateLyricHighlight(force = false) {
   }
 }
 function navigate(view, { record = true, skipShared = false } = {}) {
+  // 全屏播放器高于页面导航；返回键先关闭它而不是倒放歌单封面。
+  if(state.fullOpen&&record)closePlayer({fromHistory:true});
+  state.navigationMenuOpen=false;
   if (!skipShared && state.view === 'playlist' && view === 'home' && sharedPlaylistOrigin?.view === 'home') {
     const origin=sharedPlaylistOrigin;
     sharedPlaylistOrigin=null;
@@ -448,7 +481,7 @@ function navigate(view, { record = true, skipShared = false } = {}) {
   const toIndex = navigationOrder.indexOf(view);
   pageTransitionDirection = fromIndex >= 0 && toIndex >= 0 ? Math.sign(toIndex - fromIndex) : 0;
   state.view = view;
-  if (record) window.history.pushState({view}, '', window.location.href);
+  snapshotLocation({push:record});
   searchController?.abort();
   playlistController?.abort();
   renderHeader(); renderPage();
@@ -475,6 +508,7 @@ async function runSearch(query = state.searchQuery, { preserveTabs = false } = {
   query = String(query || '').trim();
   if (query !== state.searchQuery) { state.searchSongs = []; state.searchPlaylists = []; }
   state.searchQuery = query;
+  snapshotLocation();
   searchController?.abort();
   const version = ++searchVersion;
   if (!query) { state.searchSongs = []; state.searchPlaylists = []; state.searchError=''; state.searchLoading=false; renderPage(); return; }
@@ -497,15 +531,15 @@ async function runSearch(query = state.searchQuery, { preserveTabs = false } = {
     if (searchController === controller && version === searchVersion) { state.searchLoading = false; if (preserveTabs) updateSearchResults(); else renderPage({ restoreFocus: true }); }
   }
 }
-async function openPlaylist(id, { record = true, providerId = null, namespace = null, sourceElement = null } = {}) {
+async function openPlaylist(id, { record = true, providerId = null, namespace = null, sourceElement = null, backView:restoredBackView=null } = {}) {
   if (isPlaylistTransitionRunning()) return;
   const isFeatured = record && state.view === 'home' && !!sourceElement?.closest('.home-discover');
   if(isFeatured)sharedPlaylistOrigin={view:'home',id:String(id),providerId:providerId||'',scrollY:window.scrollY};
   else if(record)sharedPlaylistOrigin=null;
-  const backView = state.view === 'search' ? 'search' : state.view === 'library' ? 'library' : 'home';
-  if (record) window.history.pushState({view:'playlist',id,providerId,namespace}, '', window.location.href);
+  const backView = restoredBackView || (state.view === 'search' ? 'search' : state.view === 'library' ? 'library' : 'home');
   state.playlistPreview=isFeatured ? state.featured.find(x=>String(x.id)===String(id))||null : null;
-  state.view='playlist'; state.backView=backView; state.playlistId=id; state.playlistProviderId=providerId; state.playlistNamespace=namespace; state.playlistLoading=true; state.playlistError=''; state.playlist=null;
+  state.view='playlist'; state.backView=backView; state.playlistId=id; state.playlistProviderId=providerId; state.playlistNamespace=namespace; state.playlistLoading=true; state.playlistError=''; state.playlist=null; state.playlistTitle='';state.navigationMenuOpen=false;
+  snapshotLocation({push:record});
   playlistController?.abort();
   const controller = new AbortController(); playlistController=controller;
   const transition=isFeatured
@@ -514,8 +548,8 @@ async function openPlaylist(id, { record = true, providerId = null, namespace = 
   // 网络加载与动画并行，但加载完成后等转场交接完毕再重绘。
   try { const key=['playlist',api.activeId,id,state.playlistProviderId,state.playlistNamespace].join(':');
     const result=(await cachedResource(key,()=>api.playlistDetail(id,controller.signal,state.playlistProviderId,state.playlistNamespace),
-      {signal:controller.signal,onFresh:updated=>{if(playlistController===controller&&!controller.signal.aborted&&state.view==='playlist'){state.playlist=updated;renderPage();}}})).value;
-    if(!controller.signal.aborted){state.playlist=result;state.apiFallback=api.lastFallback;} }
+      {signal:controller.signal,onFresh:updated=>{if(playlistController===controller&&!controller.signal.aborted&&state.view==='playlist'){state.playlist=updated;state.playlistTitle=updated.title||'';snapshotLocation();renderPage();}}})).value;
+    if(!controller.signal.aborted){state.playlist=result;state.playlistTitle=result?.title||'';state.apiFallback=api.lastFallback;snapshotLocation();} }
   catch (err) { if (controller.signal.aborted) return; state.playlistError=err.message || '网络请求失败'; }
   finally { await transition; if (playlistController===controller && !controller.signal.aborted && state.view==='playlist') {state.playlistLoading=false;renderPage();} }
 }
@@ -659,7 +693,7 @@ async function importFiles(files) {
       toast(`${file.name} 未能保存，可能是浏览器存储空间不足。`,'error');
     }
   }
-  if (success) { state.view='library';state.libraryTab='local';renderHeader();renderPage();toast(`已导入 ${success} 首本地歌曲。`); }
+  if (success) { state.view='library';state.libraryTab='local';snapshotLocation({push:true});renderHeader();renderPage();toast(`已导入 ${success} 首本地歌曲。`); }
 }
 async function deleteLocal(id) {
   const target=state.localFiles.find(t=>t.id===id);
@@ -857,7 +891,7 @@ function downloadProfiles() {
 }
 
 const collections=mountCollections({
- app,state,render:()=>{if(state.view==='library'&&state.libraryTab==='playlists')updateLibraryContent();},toast,
+ app,state,render:()=>{if(state.view==='library'&&state.libraryTab==='playlists')updateLibraryContent();},onNavigation:()=>{snapshotLocation();renderDirectory();},toast,
  confirm:showConfirmDialog,findSong,playCollection,
  getSnapshot:()=>({favorites:state.favorites,recent:state.recent,queue:state.queue,queueIndex:state.queueIndex,repeat:state.repeat,shuffle:state.shuffle,settings:state.settings}),
  restoreSnapshot:data=>{
