@@ -2,7 +2,7 @@ import {listPlaylists,savePlaylist,deletePlaylist,replacePlaylists,freshPlaylist
 import {songMenuMarkup} from './collections-view.js';
 import {allPlayHistory,replaceHistory,summarizePlayHistory} from '../core/history.js';
 import {trackIdentity} from '../api/providers.js';
-export function mountCollections({app,state,render,onNavigation=()=>{},toast,confirm,findSong,playCollection,onSong,getSnapshot,restoreSnapshot}){
+export function mountCollections({app,state,render,onNavigation=()=>{},onShareList=()=>{},toast,confirm,findSong,playCollection,onSong,getSnapshot,restoreSnapshot}){
  let menu=null,track=null,drag=-1,menuOpener=null;
  const close=()=>{menu?.remove();menu=null;track=null;const opener=menuOpener;menuOpener=null;if(opener?.isConnected)opener.focus({preventScroll:true});};
  const refresh=async()=>{const p=state.localPlaylists.find(x=>x.id===state.selectedLocalPlaylist);
@@ -51,6 +51,7 @@ export function mountCollections({app,state,render,onNavigation=()=>{},toast,con
   if(a==='play-list'||a==='play-one'){const p=state.localPlaylists.find(x=>x.id===state.selectedLocalPlaylist);if(!p)return;if(p.smart)await refresh();const songs=state.selectedLocalTracks||[];if(songs.length)playCollection(songs,a==='play-one'?i:0);else toast('歌单暂无歌曲');return;}
   if(['up','down','remove-song'].includes(a)){const p=state.localPlaylists.find(x=>x.id===state.selectedLocalPlaylist);if(!p||p.smart)return;const songs=[...p.tracks],target=i+(a==='up'?-1:1);if(a==='remove-song')songs.splice(i,1);else if(target>=0&&target<songs.length)[songs[i],songs[target]]=[songs[target],songs[i]];await save({...p,tracks:songs});return;}
   if(['add-rule','add-group','remove-rule'].includes(a)){const p=node(b.dataset.path),parts=b.dataset.path.split('.');if(a==='add-rule'&&p?.kind==='group')p.items.push({kind:'test',field:'favorite',op:'eq',value:'true'});if(a==='add-group'&&p?.kind==='group')p.items.push(emptyRules());if(a==='remove-rule'&&parts.length>1){const i=+parts.pop();node(parts.join('.'))?.items.splice(i,1);}render();return;}
+  if(a==='share-list'){const p=state.localPlaylists.find(x=>x.id===id);if(p)onShareList(p);return;}
   if(a==='export-list'){const p=state.localPlaylists.find(x=>x.id===id);if(p)download('AimoMusic-'+p.name+'.json',p);return;}
   if(a==='export-all'){download('AimoMusic-完整备份.json',{format:'AimoMusic-Backup',version:1,state:getSnapshot(),playlists:state.localPlaylists,history:await allPlayHistory()});return;}
   if(a==='import-lists'||a==='import-all'){const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.addEventListener('change',()=>{void importFile(input.files[0],a==='import-all').catch(e=>toast(e.message));},{once:true});input.click();}

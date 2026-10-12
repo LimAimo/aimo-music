@@ -953,7 +953,14 @@ function downloadProfiles() {
 function shareForTrack(track){return {type:'song',title:track.title,subtitle:track.artist,cover:track.cover,track:compactTrack(track)};}
 function shareForPlaylist(list){return {type:'playlist',title:list.title,subtitle:list.creator||list.description||'',cover:list.cover,playlist:{id:state.playlistId,namespace:state.playlistNamespace||'netease',providerId:state.playlistProviderId,title:list.title,cover:list.cover,count:list.count||list.tracks?.length||0}};}
 async function openSharedContent(data){
-  if(data.type==='playlist'){await openPlaylist(data.playlist.id,{providerId:data.playlist.providerId,namespace:data.playlist.namespace});return;}
+  if(data.type==='playlist'){
+    if(data.playlist.namespace==='local'){
+      const p=state.localPlaylists.find(x=>x.id===data.playlist.id);
+      if(!p){toast('这是本地歌单，只有原设备保存了该歌单才能打开','error');return;}
+      state.libraryTab='playlists';state.selectedLocalPlaylist=p.id;navigate('library');await collections.refresh();return;
+    }
+    await openPlaylist(data.playlist.id,{providerId:data.playlist.providerId,namespace:data.playlist.namespace});return;
+  }
   if((data.type==='song'||data.type==='lyrics')&&data.track){
     if(data.track.source==='local'){toast('本地音频无法跨设备播放，请在自己的设备打开','error');return;}
     navigate('home');state.queue=[data.track];state.queueIndex=0;state.current=data.track;persist();renderPlayer();openPlayer(data.type==='lyrics'?'lyrics':'cover');
@@ -969,6 +976,8 @@ const shareUi=installShareUi({app,toast,onOpenContent:openSharedContent,
 const collections=mountCollections({
  app,state,render:()=>{if(state.view==='library'&&state.libraryTab==='playlists')updateLibraryContent();},onNavigation:()=>{snapshotLocation();renderDirectory();},toast,
  confirm:showConfirmDialog,findSong,playCollection,
+ onShareList:p=>shareUi.open({type:'playlist',title:p.name,subtitle:p.description||'本地歌单 · 仅原设备可访问',cover:p.cover,
+  playlist:{id:p.id,namespace:'local',title:p.name,cover:p.cover,count:p.tracks?.length||0}}),
  getSnapshot:()=>({favorites:state.favorites,recent:state.recent,queue:state.queue,queueIndex:state.queueIndex,repeat:state.repeat,shuffle:state.shuffle,settings:state.settings}),
  restoreSnapshot:data=>{
   Object.assign(state,readPersisted({getItem:()=>JSON.stringify(data)}));
