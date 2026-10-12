@@ -54,7 +54,7 @@ const state = {
   ...saved,
   view: 'home', backView: 'home', showEasterEgg: false, navigationMenuOpen:false, playlistTitle:'', shareData:null, shareError:'',
   current: saved.queue[saved.queueIndex] || null,
-  playing: false, buffering: false, time: 0, duration: 0,
+  playing: false, buffering: false, time: 0, duration: 0, selectedLyrics:new Set(),
   fullOpen: false, fullPanel: 'cover', queueOpen: false, settingsOpen: false,
   featured: [], featuredLoading: true, featuredFailed: false,
   searchType: 'songs', searchQuery: '', searchSongs: [], searchPlaylists: [], searchLoading: false, searchError: '',
@@ -569,7 +569,7 @@ async function openPlaylist(id, { record = true, providerId = null, namespace = 
   finally { await transition; if (playlistController===controller && !controller.signal.aborted && state.view==='playlist') {state.playlistLoading=false;renderPage();} }
 }
 async function loadLyricsFor(song) {
-  state.lyrics=[]; state.activeLyric=-1; state.lyricsError='';
+  state.lyrics=[];state.selectedLyrics.clear(); state.activeLyric=-1; state.lyricsError='';
   if (song.source === 'local') { state.lyricsLoading=false; renderOverlay(); return; }
   state.lyricsLoading=true; renderOverlay();
   const token=playToken;
@@ -811,10 +811,31 @@ function handleAction(button) {
     case 'repeat':state.repeat=({off:'all',all:'one',one:'off'})[state.repeat];persist();renderPlayer();renderOverlay();toast(({off:'循环播放已关闭',all:'列表循环',one:'单曲循环'})[state.repeat]);break;
     case 'share-current':if(state.current)shareUi.open(shareForTrack(state.current));break;
     case 'share-playlist':if(state.playlist)shareUi.open(shareForPlaylist(state.playlist));break;
+    case 'lyric-select':{
+      const i=Number(button.dataset.index);
+      if(state.selectedLyrics.has(i))state.selectedLyrics.delete(i);
+      else if(state.selectedLyrics.size<8)state.selectedLyrics.add(i);
+      else {toast('一次最多分享 8 行歌词');break;}
+      button.classList.toggle('is-share-selected',state.selectedLyrics.has(i));
+      button.setAttribute('aria-pressed',String(state.selectedLyrics.has(i)));
+      break;
+    }
     case 'share-lyrics':if(state.current){
-      const selected=state.lyrics.filter((line,i)=>button.dataset.selected?button.dataset.selected.split(',').includes(String(i)):line.text).slice(0,8).map(line=>line.text);
+      const chosen=state.selectedLyrics.size?[...state.selectedLyrics].sort((a,b)=>a-b):state.lyrics.findIndex(x=>x.time<=state.time&&state.time-x.time<8);
+      const selected=(Array.isArray(chosen)?chosen:[Math.max(0,chosen)]).map(i=>state.lyrics[i]?.text).filter(Boolean).slice(0,8);
       shareUi.open({...shareForTrack(state.current),type:'lyrics',lines:selected});
     }break;
+    case 'share-stats':{
+      const count=state.historyEntries.length;
+      const period=button.dataset.period||'month';
+      const now=Date.now(),days=period==='week'?7:period==='year'?365:30;
+      const recent=state.historyEntries.filter(x=>now-new Date(x.playedAt||x.timestamp||x.date||0).getTime()<days*86400000);
+      const counts=new Map();for(const x of recent){const t=x.track||x;if(t?.title)counts.set(t.title,(counts.get(t.title)||0)+1);}
+      const top=[...counts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3);
+      shareUi.open({type:'stats',title:'我的听歌记录',subtitle:period==='week'?'最近 7 天':period==='year'?'最近一年':'最近 30 天',
+        stats:[{label:'已加载历史记录',value:String(count)},{label:'该时间范围内',value:String(recent.length)},...top.map(([label,value])=>({label,value:String(value)+' 次'}))]});
+      break;
+    }
     case 'share-recreate':if(state.shareData)shareUi.open(state.shareData);break;
     case 'share-open-content':if(state.shareData)void openSharedContent(state.shareData);break;
     case 'open-full':openPlayer('cover');break;
