@@ -838,10 +838,15 @@ function handleAction(button) {
       const count=state.historyEntries.length;
       const period=button.dataset.period||'month';
       const now=Date.now(),days=period==='week'?7:period==='year'?365:30;
-      const recent=state.historyEntries.filter(x=>now-new Date(x.playedAt||x.timestamp||x.date||0).getTime()<days*86400000);
+      const fromInput=document.getElementById('share-stats-from')?.value,toInput=document.getElementById('share-stats-to')?.value;
+      if(period==='custom'&&(!fromInput||!toInput)){toast('请选择开始与结束日期');break;}
+      const from=period==='custom'?new Date(fromInput+'T00:00:00').getTime():now-days*86400000;
+      const to=period==='custom'?new Date(toInput+'T23:59:59').getTime():now;
+      if(from>to||!Number.isFinite(from)||!Number.isFinite(to)){toast('日期范围不正确');break;}
+      const recent=state.historyEntries.filter(x=>{const t=new Date(x.playedAt||x.timestamp||x.date||0).getTime();return t>=from&&t<=to;});
       const counts=new Map();for(const x of recent){const t=x.track||x;if(t?.title)counts.set(t.title,(counts.get(t.title)||0)+1);}
       const top=[...counts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3);
-      shareUi.open({type:'stats',title:'我的听歌记录',subtitle:period==='week'?'最近 7 天':period==='year'?'最近一年':'最近 30 天',
+      shareUi.open({type:'stats',title:'我的听歌记录',subtitle:period==='week'?'最近 7 天':period==='year'?'最近一年':period==='custom'?fromInput+' 至 '+toInput:'最近 30 天',
         stats:[{label:'已加载历史记录',value:String(count)},{label:'该时间范围内',value:String(recent.length)},...top.map(([label,value])=>({label,value:String(value)+' 次'}))]});
       break;
     }

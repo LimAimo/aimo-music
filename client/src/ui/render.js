@@ -92,7 +92,7 @@ export function searchMarkup(state) {
 export function libraryContentMarkup(state) {
   if(state.libraryTab==='playlists')return collectionsMarkup(state);
   if(state.libraryTab==='history') {
-    const statsShare='<div class="share-stats-tools"><span>制作听歌统计卡片</span><button class="share-entry-btn" data-action="share-stats" data-period="week">本周</button><button class="share-entry-btn" data-action="share-stats" data-period="month">本月</button><button class="share-entry-btn" data-action="share-stats" data-period="year">本年</button></div>';
+    const statsShare='<div class="share-stats-tools"><span>制作听歌统计卡片</span><button class="share-entry-btn" data-action="share-stats" data-period="week">本周</button><button class="share-entry-btn" data-action="share-stats" data-period="month">本月</button><button class="share-entry-btn" data-action="share-stats" data-period="year">本年</button><label>开始 <input type="date" id="share-stats-from"></label><label>结束 <input type="date" id="share-stats-to"></label><button class="share-entry-btn" data-action="share-stats" data-period="custom">自定义</button></div>';
     let previousDay='';
     const rows=(state.historyEntries||[]).map(entry=>{
       const song=entry.track||{};
