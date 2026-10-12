@@ -1094,7 +1094,7 @@ window.addEventListener('online',()=>{
 });
 window.addEventListener('offline',()=>toast('网络已断开，仍可浏览缓存内容和本地歌曲'));
 function restoreHistoryLocation(entry){
-  const parsed=parseRoute(window.location.href,routeBase);
+  const parsed=typeof parseRoute==='function'&&typeof window!=='undefined'&&typeof routeBase!=='undefined'?parseRoute(window.location.href,routeBase):null;
   const target=parsed?.view==='share'?normalizeRoute({view:'share'}):normalizeRoute(entry)||normalizeRoute(parsed)||normalizeRoute({view:'home'});
   const existing=routeFromState(state);
   state.navigationMenuOpen=false;
