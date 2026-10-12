@@ -1,9 +1,82 @@
-/* 氛围层只能控制视觉，不能覆盖 player.css 中的 fixed 定位。 */
-.player-shell,.full-overlay{isolation:isolate;--ambient-tone-0:#566c7a;--ambient-tone-1:#7f597b;--ambient-tone-2:#446b58}
-.player-shell::before,.full-overlay::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background-size:cover;background-position:center;opacity:0;transition:opacity .45s ease;will-change:opacity}
-.player-shell[data-ambient="blur"]::before,.full-overlay[data-ambient="blur"]::before{background-image:var(--ambient-cover);filter:blur(42px) saturate(1.35);opacity:.23;transform:scale(1.12)}
-.player-shell[data-ambient="glow"]::before,.full-overlay[data-ambient="glow"]::before{background-image:radial-gradient(ellipse at 20% 70%,var(--ambient-tone-0),transparent 68%),radial-gradient(ellipse at 83% 22%,var(--ambient-tone-1),transparent 55%),radial-gradient(ellipse at 65% 95%,var(--ambient-tone-2),transparent 55%);filter:blur(32px);opacity:.24}
-.player-shell[data-ambient="gradient"]::before,.full-overlay[data-ambient="gradient"]::before{background-image:linear-gradient(115deg,var(--ambient-tone-0),var(--ambient-tone-1),var(--ambient-tone-2));filter:blur(25px);opacity:.27}
-.player-shell[data-ambient="single"]::before,.full-overlay[data-ambient="single"]::before{background:var(--ambient-tone-0);filter:blur(22px);opacity:.15}
-.player-shell[data-ambient="off"]::before,.full-overlay[data-ambient="off"]::before{display:none!important}
-@media(prefers-reduced-motion:reduce){.player-shell::before,.full-overlay::before{transition:none!important;will-change:auto}}
+/* 只渲染氛围光影，不修改迷你播放器/完整播放器的 fixed 定位。 */
+@property --ambient-tone-0 { syntax: "<color>"; inherits: true; initial-value: #566c7a; }
+@property --ambient-tone-1 { syntax: "<color>"; inherits: true; initial-value: #7f597b; }
+@property --ambient-tone-2 { syntax: "<color>"; inherits: true; initial-value: #446b58; }
+
+.player-shell, .full-overlay {
+ isolation: isolate;
+ --ambient-tone-0: #566c7a;
+ --ambient-tone-1: #7f597b;
+ --ambient-tone-2: #446b58;
+ transition: --ambient-tone-0 .65s ease, --ambient-tone-1 .65s ease, --ambient-tone-2 .65s ease;
+}
+.player-shell::before, .full-overlay::before {
+ content: "";
+ position: absolute;
+ inset: 0;
+ z-index: 0;
+ pointer-events: none;
+ background-repeat: no-repeat;
+ background-size: cover;
+ background-position: center;
+ opacity: 0;
+ transition: opacity .4s ease;
+}
+/* 旧版使用 z-index:-1，被播放器本身的纯色背景遮挡，所有模式看起来几乎一样。 */
+.player-shell > .player-inner,
+.full-overlay > .full-header,
+.full-overlay > .full-content {
+ position: relative;
+ z-index: 1;
+}
+/* 柔和光晕：三个局部的彩色发光区域，不显露原图轮廓。 */
+.player-shell[data-ambient="glow"]::before,
+.full-overlay[data-ambient="glow"]::before {
+ background-image:
+  radial-gradient(ellipse 44% 52% at 21% 47%, var(--ambient-tone-0) 0%, transparent 95%),
+  radial-gradient(ellipse 47% 55% at 82% 24%, var(--ambient-tone-1) 0%, transparent 96%),
+  radial-gradient(ellipse 52% 47% at 62% 85%, var(--ambient-tone-2) 0%, transparent 100%);
+ filter: saturate(1.5);
+ opacity: .56;
+}
+.player-shell[data-ambient="glow"]::before { opacity: .4; }
+/* 封面模糊：使用真实封面作为底图，无法获取图片时回退到色板。 */
+.player-shell[data-ambient="blur"]::before,
+.full-overlay[data-ambient="blur"]::before {
+ background-image:
+  var(--ambient-cover, none),
+  linear-gradient(115deg, var(--ambient-tone-0),var(--ambient-tone-1),var(--ambient-tone-2));
+ background-position: center;
+ background-size: cover;
+ filter: blur(32px) saturate(1.6);
+ transform: scale(1.1);
+ opacity: .42;
+}
+.player-shell[data-ambient="blur"]::before { opacity: .33; }
+/* 多色渐变：整片连续色带，不依赖封面轮廓和模糊滤镜。 */
+.player-shell[data-ambient="gradient"]::before,
+.full-overlay[data-ambient="gradient"]::before {
+ background-image: linear-gradient(125deg,
+  var(--ambient-tone-0) 0%,
+  var(--ambient-tone-1) 48%,
+  var(--ambient-tone-2) 100%);
+ opacity: .37;
+}
+.player-shell[data-ambient="gradient"]::before { opacity: .3; }
+/* 极简单色：纯色，不含任何渐变或图片纹理。 */
+.player-shell[data-ambient="single"]::before,
+.full-overlay[data-ambient="single"]::before {
+ background-image: none;
+ background-color: var(--ambient-tone-0);
+ opacity: .21;
+}
+.player-shell[data-ambient="single"]::before { opacity: .18; }
+/* 关闭时不绘制氛围层，节省滤镜的合成开销。 */
+.player-shell[data-ambient="off"]::before,
+.full-overlay[data-ambient="off"]::before { display: none; }
+@media (prefers-reduced-motion: reduce) {
+ .player-shell, .full-overlay,
+ .player-shell::before, .full-overlay::before {
+  transition: none;
+ }
+}
