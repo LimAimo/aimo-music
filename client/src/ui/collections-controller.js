@@ -14,7 +14,13 @@ export function mountCollections({app,state,render,toast,confirm,findSong,playCo
  async function importFile(f,full){if(!f||f.size>1e8)throw Error('导入文件过大');const data=JSON.parse(await f.text());
   if(full){if(data?.format!=='AimoMusic-Backup'||!Array.isArray(data.playlists)||!Array.isArray(data.history)||!data.state)throw Error('无效的完整备份');
    if(!await confirm('恢复备份','将替换当前歌单、播放历史、收藏和设置。建议先备份当前数据。',{confirm:'恢复'}))return;
-   await replacePlaylists(data.playlists);await replaceHistory(data.history);restoreSnapshot(data.state);
+   const previous={playlists:state.localPlaylists,history:await allPlayHistory(),state:getSnapshot()};
+   try{
+    await replacePlaylists(data.playlists);await replaceHistory(data.history);restoreSnapshot(data.state);
+   }catch(error){
+    try{await replacePlaylists(previous.playlists);await replaceHistory(previous.history);restoreSnapshot(previous.state);}catch{}
+    throw error;
+   }
   }else{const items=Array.isArray(data)?data:Array.isArray(data.playlists)?data.playlists:[data];if(items.length>1000)throw Error('歌单数量过多');for(const p of items)await savePlaylist({...p,id:freshPlaylist().id});}
   state.localPlaylists=await listPlaylists();state.collectionEdit=false;state.selectedLocalPlaylist=null;await refresh();toast(full?'数据已恢复（不含音频文件本体）':'歌单已导入');
  }
@@ -26,7 +32,7 @@ export function mountCollections({app,state,render,toast,confirm,findSong,playCo
   if(a==='close-menu'){close();return;}
   if(a.startsWith('song-')){const t=track;if(!t)return;
    if(a==='song-add'){const p=state.localPlaylists.find(x=>x.id===id&&!x.smart);if(p){if(p.tracks.some(x=>trackIdentity(x)===trackIdentity(t)))toast('该歌曲已在歌单中');else{await save({...p,tracks:[...p.tracks,t]});toast('已加入歌单');}}}
-   else if(a==='song-copy'||a==='song-link'){const value=a==='song-copy'?[t.title,t.artist,t.album].filter(Boolean).join(' - '):String(t.url||t.link||'');if(!value||a==='song-link'&&!/^https?:\/\//i.test(value))toast('这个音乐来源没有可用链接');else try{await navigator.clipboard.writeText(value);toast('已复制');}catch{toast('复制失败');}}
+   else if(a==='song-copy'||a==='song-link'){const value=a==='song-copy'?[t.title,t.artist,t.album].filter(Boolean).join(' - '):String(t.url||t.link||(t.source==='remote'&&(t.providerNamespace||'netease')==='netease'&&/^\\d+$/.test(String(t.id))?'https://music.163.com/#/song?id='+encodeURIComponent(t.id):''));if(!value||a==='song-link'&&!/^https?:\/\//i.test(value))toast('这个音乐来源没有可用链接');else try{await navigator.clipboard.writeText(value);toast('已复制');}catch{toast('复制失败');}}
    else if(a==='song-info'){
     const info=document.createElement('div');info.className='feat-menu-backdrop';
     const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));

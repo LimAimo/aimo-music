@@ -524,6 +524,7 @@ function cleanLocalObjectUrl() {
 async function playIndex(index, { forceRefresh = false, fromNavigation = false, resumeAt = 0, preserveHistory = false } = {}) {
   const song=state.queue[index];
   if (!song) return;
+  cancelPlayerTransition();
   if (!fromNavigation) shuffleHistory.reset(state.queue, index);
   const previouslyRecorded=historyRecordedToken===playToken;
   ++playToken;
@@ -612,7 +613,7 @@ function toggleFavorite(song) {
 function findSong(context,id,namespace) {
   const groups={
     searchSongs:state.searchSongs, favorites:state.favorites, recent:state.recent,
-    local:state.localFiles,playlist:state.playlist?.tracks||[],
+    local:state.localFiles,playlist:state.playlist?.tracks||[],localPlaylist:state.selectedLocalTracks||[],
   };
   return (groups[context]||[]).find(track=>track.id===id && (!namespace || (track.source==='local'?'local':track.providerNamespace||'netease')===namespace));
 }
