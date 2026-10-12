@@ -19,3 +19,9 @@ jobs:
         run: npm run check
       - name: 验证生产构建
         run: npm run build
+- name: 保存依赖锁文件供确认
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-lockfile
+          path: client/package-lock.json
+          if-no-files-found: error
