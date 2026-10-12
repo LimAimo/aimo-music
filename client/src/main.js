@@ -1,4 +1,6 @@
 import { sharedPlaylistTransition, isPlaylistTransitionRunning, interruptPlaylistTransition } from './ui/playlist-transition.js';
+import { recordPlayHistory, readPlayHistory, clearPlayHistory } from './core/history.js';
+import { installKeyboardShortcuts } from './core/keyboard.js';
 import { networkLog, installNetworkDebug } from './api/network-debug.js';
 import { versionInfo } from './version.js';
 import { MusicApi, DEFAULT_API_BASE } from './api/music.js';
@@ -40,6 +42,7 @@ let searchController = null;
 let playlistController = null;
 let playController = null;
 let playToken = 0;
+let historyRecordedToken = -1;
 let localObjectUrl = null;
 let audioTrackId = null;
 let audioRetry = false;
@@ -464,6 +467,7 @@ async function playIndex(index, { forceRefresh = false, fromNavigation = false }
   if (!song) return;
   if (!fromNavigation) shuffleHistory.reset(state.queue, index);
   ++playToken;
+  historyRecordedToken = -1;
   playController?.abort();
   playController=new AbortController();
   const token=playToken;
@@ -827,6 +831,23 @@ window.addEventListener('popstate', event => {
 window.addEventListener('scroll',()=>document.getElementById('app-header')?.classList.toggle('is-scrolled',window.scrollY>12),{passive:true});
 themeMedia?.addEventListener('change',()=>{if(state.settings.theme==='system'){applyTheme();renderHeader();}});
 
+
+installKeyboardShortcuts({
+  'Space': () => state.playing ? pause() : resume(),
+  'ArrowRight': () => seek((audio.currentTime || 0) + 5),
+  'ArrowLeft': () => seek((audio.currentTime || 0) - 5),
+  'ArrowUp': () => { audio.volume = Math.min(1, audio.volume + .05); state.settings.volume = audio.volume; persist(); },
+  'ArrowDown': () => { audio.volume = Math.max(0, audio.volume - .05); state.settings.volume = audio.volume; persist(); },
+  'KeyN': () => next(),
+  'KeyP': () => previous(),
+  'KeyM': () => { audio.muted = !audio.muted; },
+  'Slash': () => { navigate('search'); requestAnimationFrame(() => document.getElementById('search-input')?.focus()); },
+  'Escape': () => { if(state.queueOpen) state.queueOpen=false; else if(state.fullOpen) state.fullOpen=false; else if(state.settingsOpen) state.settingsOpen=false; else return; renderOverlay(); },
+  'KeyF': () => { if(state.current) toggleFavorite(state.current); },
+  'KeyQ': () => { state.queueOpen=!state.queueOpen; renderOverlay(); },
+  'KeyL': () => { if(state.current){state.fullOpen=true;state.fullPanel=state.fullPanel==='lyrics'?'cover':'lyrics';renderOverlay();} },
+});
+
 audio.addEventListener('timeupdate',()=>{state.time=audio.currentTime||0;updateProgress();updateLyricHighlight();});
 audio.addEventListener('loadedmetadata',()=>{state.duration=Number.isFinite(audio.duration)?audio.duration:(state.current?.duration||0);updateProgress();});
 audio.addEventListener('play',()=>{state.playing=true;updatePlayingButtons();});
@@ -834,6 +855,10 @@ audio.addEventListener('pause',()=>{state.playing=false;updatePlayingButtons();}
 audio.addEventListener('waiting',()=>{state.buffering=true;refreshBuffering();});
 audio.addEventListener('playing',()=>{
   state.buffering=false;refreshBuffering();
+  if (state.current && audioTrackId === state.current.id && historyRecordedToken !== playToken) {
+    historyRecordedToken = playToken;
+    void recordPlayHistory(state.current).catch(() => {});
+  }
   if (state.current && audioTrackId===state.current.id) {
     state.recent=pushRecent(state.recent,state.current);persist();refreshRecent();refreshRows();
   }
