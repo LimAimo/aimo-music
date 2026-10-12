@@ -2,11 +2,11 @@ import {listPlaylists,savePlaylist,deletePlaylist,replacePlaylists,freshPlaylist
 import {songMenuMarkup} from './collections-view.js';
 import {allPlayHistory,replaceHistory,summarizePlayHistory} from '../core/history.js';
 import {trackIdentity} from '../api/providers.js';
-export function mountCollections({app,state,render,toast,confirm,findSong,playCollection,onSong,getSnapshot,restoreSnapshot}){
- let menu=null,track=null,drag=-1;
- const close=()=>{menu?.remove();menu=null;track=null;};
+export function mountCollections({app,state,render,onNavigation=()=>{},toast,confirm,findSong,playCollection,onSong,getSnapshot,restoreSnapshot}){
+ let menu=null,track=null,drag=-1,menuOpener=null;
+ const close=()=>{menu?.remove();menu=null;track=null;const opener=menuOpener;menuOpener=null;if(opener?.isConnected)opener.focus({preventScroll:true});};
  const refresh=async()=>{const p=state.localPlaylists.find(x=>x.id===state.selectedLocalPlaylist);
-  state.selectedLocalTracks=p?(p.smart?calculateSmart(p,{...state,historySummary:await summarizePlayHistory()}):p.tracks):[];render();};
+  state.selectedLocalTracks=p?(p.smart?calculateSmart(p,{...state,historySummary:await summarizePlayHistory()}):p.tracks):[];render();onNavigation();};
  const load=async()=>{state.localPlaylists=await listPlaylists();await refresh();};
  const save=async p=>{await savePlaylist(p);state.localPlaylists=await listPlaylists();await refresh();};
  function node(path){let p=state.collectionDraft?.rules;for(const i of String(path).split('.').slice(1))p=p?.items?.[+i];return p;}
@@ -26,9 +26,11 @@ export function mountCollections({app,state,render,toast,confirm,findSong,playCo
  }
  async function action(b){const a=b.dataset.feature,id=b.dataset.id,i=+b.dataset.index;
   if(a==='song-menu'){const t=findSong(b.dataset.context,id,b.dataset.namespace);if(!t)return toast('找不到歌曲');
-   close();track=t;menu=document.createElement('div');menu.className='feat-menu-backdrop';menu.innerHTML=songMenuMarkup(t,state.localPlaylists);
-   document.body.append(menu);const r=b.getBoundingClientRect();menu.querySelector('.feat-menu').style.setProperty('--menu-y',Math.max(12,Math.min(r.top,innerHeight-470))+'px');
-   menu.addEventListener('click',e=>{if(e.target===menu)close();});menu.querySelector('button')?.focus();return;}
+   close();track=t;menuOpener=b;menu=document.createElement('div');menu.className='feat-menu-backdrop';
+   const favorite=state.favorites.some(x=>trackIdentity(x)===trackIdentity(t));
+   menu.innerHTML=songMenuMarkup(t,state.localPlaylists,favorite);
+   document.body.append(menu);const r=b.getBoundingClientRect();menu.querySelector('.feat-menu').style.setProperty('--menu-y',Math.max(12,Math.min(r.bottom,innerHeight-550))+'px');
+   menu.addEventListener('click',e=>{if(e.target===menu)close();});menu.querySelector('.feat-menu-close')?.focus();return;}
   if(a==='close-menu'){close();return;}
   if(a.startsWith('song-')){const t=track;if(!t)return;
    if(a==='song-add'){const p=state.localPlaylists.find(x=>x.id===id&&!x.smart);if(p){if(p.tracks.some(x=>trackIdentity(x)===trackIdentity(t)))toast('该歌曲已在歌单中');else{await save({...p,tracks:[...p.tracks,t]});toast('已加入歌单');}}}

@@ -1,3 +1,4 @@
+import {icon} from './icons.js';
 const e=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const cover=p=>(/^https?:\/\//i.test(p?.cover||'')||/^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(p?.cover||''))?`<img alt="" src="${e(p.cover)}">`:'<span aria-hidden="true">♫</span>';
 const fields={favorite:'已收藏',played:'曾经播放',count:'播放次数',artist:'歌手',title:'歌曲名',album:'专辑',duration:'时长（秒）',source:'来源',daysSincePlayed:'距离上次播放（天）'};
@@ -28,6 +29,34 @@ export function collectionsMarkup(state){
  return `<section class="feat-area"><div class="feat-header"><h2>我的歌单</h2><div class="feat-buttons"><button class="button button-primary" data-feature="new-list">＋ 新建歌单</button><button class="button button-secondary" data-feature="import-lists">导入</button><button class="button button-quiet" data-feature="export-all">备份全部</button><button class="button button-quiet" data-feature="import-all">恢复备份</button></div></div>
  ${items.length?`<div class="feat-grid">${items.map(p=>`<button class="feat-card" data-feature="open-list" data-id="${e(p.id)}"><span class="feat-card-art">${cover(p)}</span><strong>${e(p.name)}</strong><small>${p.smart?'智能歌单':(p.tracks?.length||0)+' 首歌曲'}</small></button>`).join('')}</div>`:'<p class="feat-secondary">还没有歌单。可以创建普通歌单或高级智能歌单。</p>'}</section>`;
 }
-export function songMenuMarkup(track,lists){
- return `<div class="feat-menu" role="dialog" aria-label="歌曲快捷菜单"><h3>${e(track.title)}</h3><p>${e(track.artist)}</p>${[['next','下一首播放'],['queue','加入播放队列'],['favorite','收藏 / 取消收藏'],['info','查看歌曲信息'],['copy','复制歌曲信息'],['artist','查看歌手'],['album','查看专辑'],['link','复制歌曲链接']].map(([k,v])=>`<button data-feature="song-${k}">${v}</button>`).join('')}<h4>添加到歌单</h4>${lists.filter(p=>!p.smart).map(p=>`<button data-feature="song-add" data-id="${e(p.id)}">＋ ${e(p.name)}</button>`).join('')||'<p>请先创建一个普通歌单</p>'}<button data-feature="close-menu">关闭</button></div>`;
+const isLinkable=t=>/^https?:\/\//i.test(String(t?.link||t?.url||''))||(t?.source==='remote'&&(t?.providerNamespace||'netease')==='netease'&&/^\d+$/.test(String(t?.id||'')));
+const menuButton=(id,title,iconName,{disabled=false,muted=false}={})=>
+ `<button class="feat-menu-item" type="button" data-feature="song-${id}" ${disabled?'disabled aria-disabled="true"':''}>${icon(iconName,19)}<span>${e(title)}</span>${muted?'<small>暂不可用</small>':''}</button>`;
+export function songMenuMarkup(track,lists,isFavorite=false){
+ const playable=[
+  menuButton('next','下一首播放','next'),
+  menuButton('queue','加入播放队列','list')
+ ].join('');
+ const folderOptions=lists.filter(p=>!p.smart);
+ const collections=folderOptions.length?
+  folderOptions.map(p=>`<button class="feat-menu-list-option" data-feature="song-add" data-id="${e(p.id)}">${icon('plus',16)}<span>${e(p.name)}</span></button>`).join(''):
+  '<p class="feat-menu-empty">暂无自定义歌单，可在音乐库中创建。</p>';
+ const library=[
+  menuButton('favorite',isFavorite?'取消喜欢':'添加到喜欢','heart'),
+  `<details class="feat-menu-playlists"><summary>${icon('plus',19)}<span>添加到歌单</span>${icon('chevronRight',16)}</summary><div class="feat-menu-list-options">${collections}</div></details>`
+ ].join('');
+ const metadata=[
+  menuButton('info','歌曲信息','info'),
+  menuButton('artist','查看歌手','music',{disabled:!track.artist}),
+  menuButton('album','查看专辑','disc',{disabled:!track.album})
+ ].join('');
+ const sharing=[
+  menuButton('copy','复制歌曲信息','list'),
+  menuButton('link','复制歌曲链接','external',{disabled:!isLinkable(track)})
+ ].join('');
+ const section=(name,content)=>`<section class="feat-menu-section" aria-label="${name}"><h4>${name}</h4><div class="feat-menu-actions">${content}</div></section>`;
+ return `<section class="feat-menu" role="dialog" aria-modal="true" aria-label="歌曲操作：${e(track.title)}" tabindex="-1">
+  <div class="feat-menu-top"><div class="feat-menu-song"><span class="feat-menu-symbol" aria-hidden="true">${icon('music',22)}</span><div><strong title="${e(track.title)}">${e(track.title)}</strong><small>${e(track.artist||'未知歌手')}</small></div></div><button type="button" class="feat-menu-close" data-feature="close-menu" aria-label="关闭歌曲菜单">${icon('close',19)}</button></div>
+  <div class="feat-menu-scroll">${section('播放管理',playable)}${section('收藏与歌单',library)}${section('歌曲资料',metadata)}${section('分享与复制',sharing)}</div>
+ </section>`;
 }
