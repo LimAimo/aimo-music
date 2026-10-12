@@ -301,12 +301,14 @@ function dismissOverlay(node, delay = 350) {
   setTimeout(() => { node.remove(); refreshOverlayLock(); synchronizeModalFocus(); }, timeout);
 }
 let sharedPlayerOpening=false;
-function openPlayer(panel='cover'){
+function openPlayer(panel='cover',{record=true}={}){
   if(!state.current)return;
   const wasOpen=state.fullOpen;
+  if(!wasOpen&&isPlaylistTransitionRunning())interruptPlaylistTransition();
   const from=wasOpen?null:document.querySelector('#player-slot .mini-now .album-art');
   sharedPlayerOpening=!wasOpen;
   state.fullOpen=true;state.fullPanel=panel;
+  snapshotLocation({push:record&&!wasOpen,overlay:'player'});
   try{renderOverlay();}finally{sharedPlayerOpening=false;}
   if(!wasOpen){
     const full=document.querySelector('#full-player:not(.is-leaving)');
@@ -321,12 +323,14 @@ function openPlayer(panel='cover'){
     }
   }
 }
-function closePlayer(){
+function closePlayer({fromHistory=false}={}){
   if(!state.fullOpen)return;
+  if(!fromHistory&&normalizeRoute(window.history.state)?.fullOpen){window.history.back();return;}
   const full=document.querySelector('#full-player:not(.is-leaving)');
   const from=full?.querySelector('.album-art--full');
   full?.classList.add('is-shared-leaving');
   state.fullOpen=false;renderOverlay();
+  if(!fromHistory)snapshotLocation({overlay:null});
   animateCoverTransition(from,document.querySelector('#player-slot .mini-now .album-art'));
 }
 function renderOverlay() {
@@ -726,7 +730,24 @@ function handleAction(button) {
   const context=button.dataset.context;
   const index=Number(button.dataset.index);
   switch(action) {
-    case 'navigate': navigate(button.dataset.view);break;
+    case 'navigate':navigate(button.dataset.view);break;
+    case 'nav-directory-toggle':
+      state.navigationMenuOpen=!state.navigationMenuOpen;renderDirectory();break;
+    case 'nav-go':{
+      const view=button.dataset.view,tab=button.dataset.tab;
+      state.navigationMenuOpen=false;
+      if(view==='library'&&tab){
+        state.libraryTab=tab;
+        state.selectedLocalPlaylist=null;
+        state.collectionEdit=false;
+        if(state.view==='library'){
+          snapshotLocation();renderPage();restoreDirectoryTab();
+        }else{navigate('library');restoreDirectoryTab();}
+      }else navigate(view);
+      renderDirectory();
+      break;
+    }
+    case 'playlist-back':navigate(state.backView,{record:false});break;
     case 'history-more':void loadHistoryPage();break;
     case 'history-clear':void (async()=>{
       if(!await showConfirmDialog('清空播放历史','这将永久删除当前浏览器中的全部播放历史，不影响收藏和歌单。',{confirm:'清空',destructive:true}))return;
@@ -795,7 +816,7 @@ function handleAction(button) {
     case 'open-full':openPlayer('cover');break;
     case 'close-full':closePlayer();break;
     case 'open-lyrics':openPlayer('lyrics');break;
-    case 'toggle-lyrics':state.fullPanel=state.fullPanel==='lyrics'?'cover':'lyrics';renderOverlay();break;
+    case 'toggle-lyrics':state.fullPanel=state.fullPanel==='lyrics'?'cover':'lyrics';snapshotLocation();renderOverlay();break;
     case 'open-queue':state.queueOpen=true;renderOverlay();break;
     case 'close-queue':state.queueOpen=false;renderOverlay();break;
     case 'queue-play':void playIndex(index);break;
@@ -908,6 +929,7 @@ const collections=mountCollections({
 });
 
 app.addEventListener('click',e=>{
+  if(state.navigationMenuOpen&&!e.target.closest('.nav-directory')){state.navigationMenuOpen=false;renderDirectory();}
   const button=e.target.closest('[data-action]');
   if(!button||!app.contains(button))return;
   handleAction(button);
@@ -1002,11 +1024,39 @@ window.addEventListener('online',()=>{
   if(state.view==='playlist'&&state.playlistId)void openPlaylist(state.playlistId,{record:false,providerId:state.playlistProviderId,namespace:state.playlistNamespace});
 });
 window.addEventListener('offline',()=>toast('网络已断开，仍可浏览缓存内容和本地歌曲'));
-window.addEventListener('popstate', event => {
-  const page=event.state;
-  if (page?.view === 'playlist' && page.id) void openPlaylist(page.id, {record:false,providerId:page.providerId||null,namespace:page.namespace||null});
-  else navigate(['home','search','library'].includes(page?.view) ? page.view : 'home', {record:false});
-});
+function restoreHistoryLocation(entry){
+  const target=normalizeRoute(entry)||normalizeRoute({view:'home'});
+  const existing=routeFromState(state);
+  state.navigationMenuOpen=false;
+  state.libraryTab=target.libraryTab;
+  state.searchType=target.searchType;
+  state.searchQuery=target.searchQuery;
+  state.selectedLocalPlaylist=target.selectedLocalPlaylist;
+  state.collectionEdit=false;
+  // Pop from song details to its underlying playlist: close the top layer only.
+  if(state.fullOpen&&!target.fullOpen)closePlayer({fromHistory:true});
+  if(target.view==='playlist'){
+    if(state.view!=='playlist'||!sameLocation(existing,target)){
+      void openPlaylist(target.playlistId,{record:false,providerId:target.playlistProviderId,
+        namespace:target.playlistNamespace,backView:target.backView}).then(()=>{
+          if(target.fullOpen&&state.current&&!state.fullOpen)openPlayer(target.fullPanel,{record:false});
+        });
+    }else{
+      state.backView=target.backView;
+      if(target.fullOpen&&state.current&&!state.fullOpen)openPlayer(target.fullPanel,{record:false});
+      else if(state.fullOpen&&target.fullPanel!==state.fullPanel){state.fullPanel=target.fullPanel;renderOverlay();}
+      renderDirectory();
+    }
+  }else{
+    if(state.view!==target.view)navigate(target.view,{record:false});
+    else{renderHeader();renderPage();}
+    restoreDirectoryTab();
+    if(target.view==='search'&&target.searchQuery)void runSearch(target.searchQuery,{preserveTabs:true});
+    if(target.fullOpen&&state.current&&!state.fullOpen)openPlayer(target.fullPanel,{record:false});
+  }
+  saveRoute(target);
+}
+window.addEventListener('popstate', event => restoreHistoryLocation(event.state));
 window.addEventListener('scroll',()=>document.getElementById('app-header')?.classList.toggle('is-scrolled',window.scrollY>12),{passive:true});
 themeMedia?.addEventListener('change',()=>{if(state.settings.theme==='system'){applyTheme();renderHeader();}});
 
