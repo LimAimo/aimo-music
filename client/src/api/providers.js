@@ -96,7 +96,7 @@ export function validateProfile(input) {
 export function sanitizeProfiles(input, legacyBase = DEFAULT_API_BASE) {
   let base = DEFAULT_API_BASE;
   try {base = validateApiBase(legacyBase);} catch { /* 旧数据不合法时恢复默认 */ }
-  const list = Array.isArray(input) ? input : [{ ...DEFAULT_PROFILES[0] }];
+  const list = Array.isArray(input) ? input : [{ ...DEFAULT_PROFILES[0],base,type:base===DEFAULT_API_BASE?'station':'netease' }];
   const profiles = [], ids = new Set();
   for (const raw of list.slice(0, MAX_PROFILES)) {
     try {let profile=validateProfile(raw);if(profile.id===BUILTIN_ID&&profile.type==='netease'&&(/music\\.20110208\\.xyz/.test(profile.base)))profile={...DEFAULT_PROFILES[0]};if(!ids.has(profile.id)){profiles.push(profile);ids.add(profile.id);}} catch { /* 独立跳过损坏项 */ }
