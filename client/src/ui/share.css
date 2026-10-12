@@ -51,3 +51,11 @@
 @keyframes share-fade{from{opacity:0}to{opacity:1}}
 @media(max-width:700px){.share-modal-backdrop{padding:0;place-items:end}.share-modal{width:100%;max-height:96dvh;border-radius:22px 22px 0 0;padding-bottom:env(safe-area-inset-bottom)}.share-modal-header{padding:15px 18px}.share-modal-header h2{font-size:19px}.share-modal-body{grid-template-columns:minmax(0,1fr);overflow:auto}.share-preview-wrap{padding:20px 30px}.share-preview{width:min(100%,260px)}.share-editor-controls{padding:18px;overflow:visible}.share-modal-actions{padding:12px 14px;gap:8px;flex-wrap:wrap}.share-modal-actions .share-btn{flex:1 1 25%;font-size:12px;padding:10px 6px}.share-card-text h2{font-size:20px}}
 @media(prefers-reduced-motion:reduce){.share-modal-backdrop{animation:none}.share-btn{transition:none}}
+
+.share-lyric-row{display:flex;align-items:center;gap:8px;min-width:0}
+.share-lyric-row>.lyric-line{flex:1;min-width:0}
+.share-lyric-pick{flex:none;width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--border);border-radius:50%;background:var(--bg-elevated);color:var(--text-tertiary);cursor:pointer;opacity:.7}
+.share-lyric-pick.is-share-selected{background:var(--accent);border-color:var(--accent);color:#fff;opacity:1}
+.share-lyric-pick:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.share-stats-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 0 16px;color:var(--text-secondary);font-size:12px}
+.share-stats-tools>span{margin-right:auto}

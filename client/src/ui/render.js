@@ -92,6 +92,7 @@ export function searchMarkup(state) {
 export function libraryContentMarkup(state) {
   if(state.libraryTab==='playlists')return collectionsMarkup(state);
   if(state.libraryTab==='history') {
+    const statsShare='<div class="share-stats-tools"><span>制作听歌统计卡片</span><button class="share-entry-btn" data-action="share-stats" data-period="week">本周</button><button class="share-entry-btn" data-action="share-stats" data-period="month">本月</button><button class="share-entry-btn" data-action="share-stats" data-period="year">本年</button></div>';
     let previousDay='';
     const rows=(state.historyEntries||[]).map(entry=>{
       const song=entry.track||{};
@@ -141,7 +142,7 @@ export function fullPlayerMarkup(state) {
     <div class="full-content"><div class="full-art-section">${albumArt(current,'full')}<div class="full-track"><div><h2>${e(current.title)}</h2><p>${e(current.artist)}</p></div><button class="share-entry-btn" data-action="share-current">${icon('external',16)} 分享</button><button class="icon-button ${state.favorites.some(f=>f.id===current.id)?'is-favorite':''}" data-action="favorite-current" aria-label="收藏" aria-pressed="${state.favorites.some(f=>f.id===current.id)}">${icon('heart',23)}</button></div>
     <div class="full-progress"><input id="full-seek" aria-label="播放进度" type="range" min="0" max="1000" value="0"><div><span id="full-current-time">${formatTime(state.time)}</span><span id="full-duration-time">${formatTime(state.duration)}</span></div></div>
     <div class="full-controls"><button class="icon-button ${state.shuffle?'is-active':''}" data-action="shuffle" aria-label="${state.shuffle ? '关闭随机播放' : '开启随机播放'}" aria-pressed="${state.shuffle}">${icon('shuffle',20)}</button><button class="icon-button" data-action="prev" aria-label="上一首">${icon('prev',27)}</button><button class="transport-play transport-play-full ${state.buffering ? 'is-buffering' : ''}" data-action="toggle-play" aria-label="${state.playing ? '暂停' : '播放'}" aria-busy="${Boolean(state.buffering)}">${icon(state.playing?'pause':'play',26)}</button><button class="icon-button" data-action="next" aria-label="下一首">${icon('next',27)}</button><button class="icon-button ${state.repeat!=='off'?'is-active':''}" data-action="repeat" aria-label="${({off:'不循环', all:'列表循环', one:'单曲循环'})[state.repeat]}" aria-pressed="${state.repeat!=='off'}">${icon(state.repeat==='one'?'repeatOne':'repeat',20)}</button></div><button class="full-lyrics-toggle" data-action="toggle-lyrics">${icon('lyric',18)} ${showLyrics?'返回封面':'打开歌词'}</button></div>
-    <div class="full-lyric-section ${showLyrics?'show-on-mobile':''}" id="full-lyric-section"><div class="lyric-heading"><span class="eyebrow">LYRICS</span><button class="share-entry-btn" data-action="share-lyrics">${icon('external',15)} 分享歌词</button><button class="text-action lyric-back-current" data-action="lyric-follow">回到当前歌词</button></div><div class="lyric-viewport" id="lyric-viewport">${lyricMarkup(state)}</div></div></div>
+    <div class="full-lyric-section ${showLyrics?'show-on-mobile':''}" id="full-lyric-section"><div class="lyric-heading"><span class="eyebrow">LYRICS</span><button class="share-entry-btn" data-action="share-lyrics">${icon('external',15)} 分享所选歌词</button><button class="text-action lyric-back-current" data-action="lyric-follow">回到当前歌词</button></div><div class="lyric-viewport" id="lyric-viewport">${lyricMarkup(state)}</div></div></div>
   </div>`;
 }
 
@@ -149,7 +150,7 @@ export function lyricMarkup(state) {
   if (state.lyricsLoading) return `<div class="lyric-placeholder"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>`;
   if (state.lyricsError) return `<div class="lyric-empty">${e(state.lyricsError)}</div>`;
   if (!state.lyrics.length) return `<div class="lyric-empty">这首歌曲暂时没有同步歌词。</div>`;
-  return `<div class="lyric-lines">${state.lyrics.map((line,i)=>`<button type="button" class="lyric-line ${i===state.activeLyric?'is-current':''}" data-action="seek-lyric" data-time="${line.time}" data-lyric-index="${i}"><span>${e(line.text)}</span>${line.translation?`<small>${e(line.translation)}</small>`:''}</button>`).join('')}</div>`;
+  return `<div class="lyric-lines">${state.lyrics.map((line,i)=>`<div class="share-lyric-row"><button type="button" class="lyric-line ${i===state.activeLyric?'is-current':''}" data-action="seek-lyric" data-time="${line.time}" data-lyric-index="${i}"><span>${e(line.text)}</span>${line.translation?`<small>${e(line.translation)}</small>`:''}</button><button type="button" class="share-lyric-pick ${state.selectedLyrics?.has(i)?'is-share-selected':''}" data-action="lyric-select" data-index="${i}" aria-pressed="${state.selectedLyrics?.has(i)||false}" aria-label="选择第 ${i+1} 行歌词用于分享">${icon('check',15)}</button></div>`).join('')}</div>`;
 }
 
 export function queueMarkup(state) {
