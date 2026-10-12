@@ -956,7 +956,11 @@ async function openSharedContent(data){
   }
   navigate('library');
 }
-const shareUi=installShareUi({app,toast,onOpenContent:openSharedContent});
+const shareUi=installShareUi({app,toast,onOpenContent:openSharedContent,
+ confirmPublish:async data=>showConfirmDialog('确认公开分享',
+  '分享链接会包含当前选中的「'+(data.title||'音乐内容')+'」及卡片信息。任何获得链接的人都能读取其中的数据，链接不会自动失效。确定生成吗？',
+  {confirm:'确认分享'})
+});
 const collections=mountCollections({
  app,state,render:()=>{if(state.view==='library'&&state.libraryTab==='playlists')updateLibraryContent();},onNavigation:()=>{snapshotLocation();renderDirectory();},toast,
  confirm:showConfirmDialog,findSong,playCollection,
