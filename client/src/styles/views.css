@@ -118,3 +118,10 @@
 @keyframes library-change { from { opacity: .6; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 .library-segmented { display: flex; max-width: 100%; }
 .library-segmented .seg-item { flex: 1 1 0; min-width: 0; }
+
+/* 唱片彩蛋仅在完成导航序列后显示，默认发现页直接呈现内容 */
+.easter-record .hero{min-height:0;display:flex;justify-content:center;padding:12px 0 34px}
+.easter-record .hero-copy{display:none}
+.easter-record .hero-visual{width:min(100%,480px);height:340px;margin:0 auto}
+.easter-record .hero-small-mark{display:none}
+@media(max-width:767px){.easter-record .hero{padding:10px 0 28px}.easter-record .hero-visual{height:270px}.easter-record .hero-paper{width:215px}}

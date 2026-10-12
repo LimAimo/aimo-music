@@ -108,3 +108,9 @@ body.overlay-open, body.modal-open { overflow: hidden; }
 #settings-overlay.dev-fullscreen #settings-form{display:none}
 #settings-overlay.dev-fullscreen .dev-state{display:flex;flex:1;min-height:0;max-height:none;flex-direction:column;overflow:hidden}
 #settings-overlay.dev-fullscreen .dev-network-log{flex:1;max-height:none;min-height:0;overflow:auto}
+
+/* 紧凑的左对齐导航：不保留品牌占位 */
+.header-inner{display:flex;justify-content:space-between;gap:16px}
+.nav-segmented{justify-self:auto;flex:none;border-radius:9px;padding:2px;gap:1px}
+.nav-segmented .seg-item{min-height:30px;padding:0 15px;font-size:12px;border-radius:6px}
+.nav-segmented .seg-indicator{border-radius:6px}

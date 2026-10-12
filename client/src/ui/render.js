@@ -19,8 +19,8 @@ export function albumArt(song, size = 'medium', extra = '') {
 
 export function header(view, theme) {
   return `<header class="app-header" id="app-header"><div class="header-inner">
-      <button class="brand" data-action="navigate" data-view="home" aria-label="Aimo Music 首页"><span class="brand-record"><span></span></span><span class="brand-wordmark">Aimo <em>Music</em></span></button>
-      ${segmentedMarkup([{ value: 'home', label: '发现' }, { value: 'search', label: '搜索' }, { value: 'library', label: '音乐库' }], view === 'playlist' ? 'home' : view, 'nav-segmented')}
+      
+      ${segmentedMarkup([{ value: 'home', label: '发现' }, { value: 'library', label: '音乐库' }, { value: 'search', label: '搜索' }], view === 'playlist' ? 'home' : view, 'nav-segmented')}
       <div class="header-actions"><button class="button button-quiet desktop-upload" data-action="import">${icon('upload', 17)}<span>导入音乐</span></button><button class="icon-button" data-action="settings" aria-label="设置">${icon('settings', 19)}</button></div>
     </div></header>`;
 }
@@ -70,7 +70,7 @@ export function featuredMarkup(state) {
 }
 
 export function homeMarkup(state) {
-  return `<div class="page page-home">${heroMarkup(state.current)}<div class="home-columns"><section class="home-main">${homeRecentMarkup(state)}</section>
+  return `<div class="page page-home">${state.showEasterEgg ? `<div class="easter-record" aria-label="隐藏唱片彩蛋">${heroMarkup(state.current)}</div>` : ''}<div class="home-columns"><section class="home-main">${homeRecentMarkup(state)}</section>
   <section class="home-discover"><div class="section-heading"><div><span class="eyebrow">FIND SOMETHING NEW</span><h2>听点新的</h2></div></div><div id="featured-playlists">${featuredMarkup(state)}</div></section></div></div>`;
 }
 

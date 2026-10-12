@@ -23,7 +23,7 @@ const filePicker = document.getElementById('local-file-picker');
 const saved = readPersisted();
 const state = {
   ...saved,
-  view: 'home', backView: 'home',
+  view: 'home', backView: 'home', showEasterEgg: false,
   current: saved.queue[saved.queueIndex] || null,
   playing: false, buffering: false, time: 0, duration: 0,
   fullOpen: false, fullPanel: 'cover', queueOpen: false, settingsOpen: false,
@@ -51,6 +51,8 @@ shuffleHistory.reset(state.queue, state.queueIndex);
 let activeDialog = null;
 let focusBeforeOverlay = null;
 let searchVersion = 0;
+let easterSequence = 0;
+const easterPath = ['home','library','search','home'];
 
 let themeMedia = window.matchMedia?.('(prefers-color-scheme: dark)');
 
@@ -332,6 +334,12 @@ function updateLyricHighlight(force = false) {
 }
 function navigate(view, { record = true } = {}) {
   if (!['home', 'search', 'library'].includes(view)) return;
+  if (record && state.view !== view) {
+    if (view === easterPath[easterSequence + 1]) easterSequence++;
+    else easterSequence = view === 'home' ? 0 : -1;
+    if (easterSequence === easterPath.length - 1) {state.showEasterEgg = true; easterSequence = -1;}
+    else state.showEasterEgg = false;
+  } else if (!record) { easterSequence = 0; state.showEasterEgg = false; }
   state.view = view;
   if (record) window.history.pushState({view}, '', window.location.href);
   searchController?.abort();
