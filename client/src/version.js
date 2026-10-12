@@ -1,1 +1,1 @@
-export const versionInfo = Object.freeze({version:'0.3.5',build:'navigation-restore-player-back-menu-sections'});
+export const versionInfo = Object.freeze({version:'0.4.0',build:'url-routing-share-cards'});
