@@ -1,7 +1,9 @@
 import './ui/ambient.css';
 import './ui/history.css';
 import { sharedPlaylistTransition, isPlaylistTransitionRunning, interruptPlaylistTransition } from './ui/playlist-transition.js';
-import { recordPlayHistory, readPlayHistory, clearPlayHistory } from './core/history.js';
+import { recordPlayHistory, readPlayHistory, clearPlayHistory, allPlayHistory, replaceHistory } from './core/history.js';
+import { mountCollections } from './ui/collections-controller.js';
+import './ui/collections.css';
 import { installKeyboardShortcuts } from './core/keyboard.js';
 import { networkLog, installNetworkDebug } from './api/network-debug.js';
 import { versionInfo } from './version.js';
@@ -35,6 +37,7 @@ const state = {
   featured: [], featuredLoading: true, featuredFailed: false,
   searchType: 'songs', searchQuery: '', searchSongs: [], searchPlaylists: [], searchLoading: false, searchError: '',
   libraryTab: 'favorites', localFiles: [], historyEntries: [], historyHasMore: true, historyLoading: false,
+  localPlaylists:[],selectedLocalPlaylist:null,selectedLocalTracks:[],collectionEdit:false,collectionDraft:null,
   playlistId: null, playlist: null, playlistPreview: null, playlistLoading: false, playlistError: '',
   lyrics: [], lyricsLoading: false, lyricsError: '', activeLyric: -1,
   apiView: 'settings', apiEditingId: null, apiDraft: null, apiFallback: null, playlistProviderId: null, playlistNamespace: null,
@@ -110,7 +113,7 @@ async function loadHistoryPage(reset=false) {
   if(state.view==='library'&&state.libraryTab==='history')updateLibraryContent();
   try {
     const last=state.historyEntries.at(-1);
-    const page=await readPlayHistory({limit:50,before:last?.playedAt??Infinity});
+    const page=await readPlayHistory({limit:50,beforeId:last?.entryId??null});
     state.historyEntries.push(...page);
     state.historyHasMore=page.length===50;
   } catch(error){toast('播放历史读取失败：'+error.message,'error');}
@@ -161,6 +164,7 @@ function renderPage({ restoreFocus = false } = {}) {
       state.libraryTab = value;
       updateLibraryContent({ animate: true });
       if(value==='history'&&!state.historyEntries.length)void loadHistoryPage(true);
+      if(value==='playlists')void collections.refresh();
     }
   });
   if (focusedSearch) {
@@ -790,6 +794,23 @@ function downloadProfiles() {
   setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 
+const collections=mountCollections({
+ app,state,render:()=>{if(state.view==='library'&&state.libraryTab==='playlists')updateLibraryContent();},toast,
+ confirm:showConfirmDialog,findSong,playCollection,
+ getSnapshot:()=>({favorites:state.favorites,recent:state.recent,queue:state.queue,queueIndex:state.queueIndex,repeat:state.repeat,shuffle:state.shuffle,settings:state.settings}),
+ restoreSnapshot:data=>{
+  Object.assign(state,readPersisted({getItem:()=>JSON.stringify(data)}));
+  try{configureApi();}catch{}applyTheme();persist();renderHeader();renderPlayer();renderOverlay();renderPage();
+  state.historyEntries=[];state.historyHasMore=true;
+ },
+ onSong:(action,track)=>{
+  if(action==='next'){state.queue.splice(Math.max(0,state.queueIndex+1),0,track);shuffleHistory.reset(state.queue,state.queueIndex);persist();renderOverlay();toast('已安排下一首');}
+  else if(action==='queue'){state.queue=appendToQueue(state.queue,track);shuffleHistory.reset(state.queue,state.queueIndex);persist();renderOverlay();toast('已加入播放队列');}
+  else if(action==='favorite')toggleFavorite(track);
+  else if(action==='artist'||action==='album'){const q=action==='artist'?track.artist:track.album;if(q){navigate('search');void runSearch(q);}else toast('没有对应的资料');}
+ }
+});
+
 app.addEventListener('click',e=>{
   const button=e.target.closest('[data-action]');
   if(!button||!app.contains(button))return;
@@ -924,6 +945,7 @@ async function init() {
   applyTheme();audio.volume=Math.max(0,Math.min(1,state.settings.volume));
   renderHeader();renderPage();renderPlayer();
   try {state.localFiles=await loadLocalFiles();if(state.view==='library')renderPage();}catch{ /* 浏览器隐私模式可能不可用 */ }
+  try{await collections.load();}catch(err){toast('歌单存储不可用：'+err.message,'error');}
   void loadFeatured();
 }
 void init().catch(error => {console.error('AimoMusic 启动失败',error);toast('应用初始化失败，请刷新页面重试。','error');});
