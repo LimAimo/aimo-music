@@ -1,4 +1,5 @@
-.player-shell,.full-overlay{position:relative;isolation:isolate;--ambient-tone-0:#566c7a;--ambient-tone-1:#7f597b;--ambient-tone-2:#446b58}
+/* 氛围层只能控制视觉，不能覆盖 player.css 中的 fixed 定位。 */
+.player-shell,.full-overlay{isolation:isolate;--ambient-tone-0:#566c7a;--ambient-tone-1:#7f597b;--ambient-tone-2:#446b58}
 .player-shell::before,.full-overlay::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background-size:cover;background-position:center;opacity:0;transition:opacity .45s ease;will-change:opacity}
 .player-shell[data-ambient="blur"]::before,.full-overlay[data-ambient="blur"]::before{background-image:var(--ambient-cover);filter:blur(42px) saturate(1.35);opacity:.23;transform:scale(1.12)}
 .player-shell[data-ambient="glow"]::before,.full-overlay[data-ambient="glow"]::before{background-image:radial-gradient(ellipse at 20% 70%,var(--ambient-tone-0),transparent 68%),radial-gradient(ellipse at 83% 22%,var(--ambient-tone-1),transparent 55%),radial-gradient(ellipse at 65% 95%,var(--ambient-tone-2),transparent 55%);filter:blur(32px);opacity:.24}
