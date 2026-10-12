@@ -2,6 +2,8 @@ import './ui/keyboard.css';
 import './ui/ambient.css';
 import './ui/history.css';
 import { sharedPlaylistTransition, isPlaylistTransitionRunning, interruptPlaylistTransition } from './ui/playlist-transition.js';
+import { animateCoverTransition,cancelPlayerTransition,enablePlayerSwipe } from './ui/player-motion.js';
+import './ui/player-motion.css';
 import { recordPlayHistory, readPlayHistory, clearPlayHistory, allPlayHistory, replaceHistory } from './core/history.js';
 import { mountCollections } from './ui/collections-controller.js';
 import './ui/collections.css';
@@ -260,6 +262,19 @@ function dismissOverlay(node, delay = 350) {
   const timeout = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : delay;
   setTimeout(() => { node.remove(); refreshOverlayLock(); synchronizeModalFocus(); }, timeout);
 }
+function openPlayer(panel='cover'){
+  if(!state.current)return;
+  const wasOpen=state.fullOpen;
+  const from=wasOpen?null:document.querySelector('#player-slot .mini-now .album-art');
+  state.fullOpen=true;state.fullPanel=panel;renderOverlay();
+  if(!wasOpen)animateCoverTransition(from,document.querySelector('#full-player:not(.is-leaving) .album-art--full'));
+}
+function closePlayer(){
+  if(!state.fullOpen)return;
+  const from=document.querySelector('#full-player:not(.is-leaving) .album-art--full');
+  state.fullOpen=false;renderOverlay();
+  animateCoverTransition(from,document.querySelector('#player-slot .mini-now .album-art'));
+}
 function renderOverlay() {
   const slot = document.getElementById('overlay-slot');
   const trackId = String(state.current?.id || '');
@@ -273,7 +288,7 @@ function renderOverlay() {
       slot.querySelector('#full-player.is-leaving')?.remove();
       slot.insertAdjacentHTML('beforeend', fullPlayerMarkup(state));
       full = slot.querySelector('#full-player:not(.is-leaving)');
-      if (full) { full.dataset.trackId = trackId; recreatedFull = true; updateAmbient(); }
+      if (full) { full.dataset.trackId = trackId; recreatedFull = true; updateAmbient();enablePlayerSwipe(full,closePlayer); }
     }
     if (full) {
       const lyrics = full.querySelector('#lyric-viewport');
@@ -629,7 +644,7 @@ async function deleteLocal(id) {
 function closeTopOverlay() {
   if (state.settingsOpen) {state.settingsOpen=false;renderOverlay();return;}
   if (state.queueOpen) {state.queueOpen=false;renderOverlay();return;}
-  if (state.fullOpen) {state.fullOpen=false;renderOverlay();}
+  if (state.fullOpen) closePlayer();
 }
 
 function handleAction(button) {
@@ -704,9 +719,9 @@ function handleAction(button) {
     case 'next':next();break;
     case 'shuffle':state.shuffle=!state.shuffle;shuffleHistory.reset(state.queue,state.queueIndex);persist();renderPlayer();renderOverlay();toast(state.shuffle?'随机播放已开启':'随机播放已关闭');break;
     case 'repeat':state.repeat=({off:'all',all:'one',one:'off'})[state.repeat];persist();renderPlayer();renderOverlay();toast(({off:'循环播放已关闭',all:'列表循环',one:'单曲循环'})[state.repeat]);break;
-    case 'open-full':if(state.current){state.fullOpen=true;state.fullPanel='cover';renderOverlay();}break;
-    case 'close-full':state.fullOpen=false;renderOverlay();break;
-    case 'open-lyrics':if(state.current){state.fullOpen=true;state.fullPanel='lyrics';renderOverlay();}break;
+    case 'open-full':openPlayer('cover');break;
+    case 'close-full':closePlayer();break;
+    case 'open-lyrics':openPlayer('lyrics');break;
     case 'toggle-lyrics':state.fullPanel=state.fullPanel==='lyrics'?'cover':'lyrics';renderOverlay();break;
     case 'open-queue':state.queueOpen=true;renderOverlay();break;
     case 'close-queue':state.queueOpen=false;renderOverlay();break;
@@ -925,10 +940,10 @@ installKeyboardShortcuts({
   'KeyP': () => previous(),
   'KeyM': () => { audio.muted = !audio.muted; },
   'Slash': () => { navigate('search'); requestAnimationFrame(() => document.getElementById('search-input')?.focus()); },
-  'Escape': () => { if(state.queueOpen) state.queueOpen=false; else if(state.fullOpen) state.fullOpen=false; else if(state.settingsOpen) state.settingsOpen=false; else return; renderOverlay(); },
+  'Escape': () => { if(document.querySelector('body > .dialog-overlay:not(.is-leaving)'))return;closeTopOverlay(); },
   'KeyF': () => { if(state.current) toggleFavorite(state.current); },
   'KeyQ': () => { state.queueOpen=!state.queueOpen; renderOverlay(); },
-  'KeyL': () => { if(state.current){state.fullOpen=true;state.fullPanel=state.fullPanel==='lyrics'?'cover':'lyrics';renderOverlay();} },
+  'KeyL': () => { if(state.current){if(!state.fullOpen)openPlayer('lyrics');else{state.fullPanel=state.fullPanel==='lyrics'?'cover':'lyrics';renderOverlay();}} },
 },{getBindings:()=>state.settings.shortcuts,getContext:()=>({player:state.fullOpen,library:state.view==='library',search:state.view==='search',home:state.view==='home'})});
 
 audio.addEventListener('timeupdate',()=>{state.time=audio.currentTime||0;updateProgress();updateLyricHighlight();});

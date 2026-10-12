@@ -1,0 +1,1 @@
+.player-shared-ghost{overflow:hidden;border-radius:14px;box-shadow:0 12px 38px rgba(0,0,0,.12);will-change:transform}.full-header,.full-art-section>.album-art{touch-action:none}.full-overlay[data-swipe-bound="1"]{will-change:transform}@media(prefers-reduced-motion:reduce){.full-overlay,.full-overlay.is-leaving{animation:none!important}}
