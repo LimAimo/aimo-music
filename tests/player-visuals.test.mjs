@@ -35,7 +35,10 @@ test('光晕、模糊、渐变、单色和关闭，使用五套不同渲染方�
  assert.match(off,/display:\s*none/);
 });
 test('统一封面圆角，FLIP 不允许通过 scale 放大圆角',()=>{
- assert.match(coverCSS,/\.album-art--mini,\s*\.album-art--full,\s*\.player-shared-ghost\s*\{[^}]*border-radius:\s*var\(--player-cover-radius\)/s);
+ const views=readFileSync(new URL('../client/src/styles/views.css',import.meta.url),'utf8');
+ assert.match(views,/\.album-art--mini\s*\{[^}]*border-radius:\s*var\(--player-cover-radius/);
+ assert.match(views,/\.album-art--full\s*\{[^}]*border-radius:\s*var\(--player-cover-radius/);
+ assert.match(coverCSS,/\.player-shared-ghost\s*\{[^}]*border-radius:\s*var\(--player-cover-radius/s);
  const previous={document:globalThis.document,getComputedStyle:globalThis.getComputedStyle,matchMedia:globalThis.matchMedia};
  let frames,ghost;
  const from={style:{},getBoundingClientRect:()=>({left:15,top:650,width:48,height:48}),cloneNode:()=>{

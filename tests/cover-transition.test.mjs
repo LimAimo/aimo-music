@@ -16,6 +16,7 @@ test('共享元素不再用 transform scale 放大圆角',()=>{
  let frames;
  const make=box=>({
   isConnected:true,style:{visibility:''},getBoundingClientRect:()=>box,
+  animate(){},
   cloneNode(){return {style:{},classList:{add(){}},remove(){},
    animate(f){frames=f;return {finished:new Promise(()=>{}),cancel(){}};}};}
  });
