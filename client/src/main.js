@@ -1,3 +1,4 @@
+import './ui/history.css';
 import { sharedPlaylistTransition, isPlaylistTransitionRunning, interruptPlaylistTransition } from './ui/playlist-transition.js';
 import { recordPlayHistory, readPlayHistory, clearPlayHistory } from './core/history.js';
 import { installKeyboardShortcuts } from './core/keyboard.js';
@@ -32,7 +33,7 @@ const state = {
   fullOpen: false, fullPanel: 'cover', queueOpen: false, settingsOpen: false,
   featured: [], featuredLoading: true, featuredFailed: false,
   searchType: 'songs', searchQuery: '', searchSongs: [], searchPlaylists: [], searchLoading: false, searchError: '',
-  libraryTab: 'favorites', localFiles: [],
+  libraryTab: 'favorites', localFiles: [], historyEntries: [], historyHasMore: true, historyLoading: false,
   playlistId: null, playlist: null, playlistPreview: null, playlistLoading: false, playlistError: '',
   lyrics: [], lyricsLoading: false, lyricsError: '', activeLyric: -1,
   apiView: 'settings', apiEditingId: null, apiDraft: null, apiFallback: null, playlistProviderId: null, playlistNamespace: null,
@@ -100,6 +101,20 @@ function renderHeader() {
   const el = document.getElementById('app-header');
   el?.classList.toggle('is-scrolled', window.scrollY > 12);
 }
+async function loadHistoryPage(reset=false) {
+  if(state.historyLoading)return;
+  if(reset){state.historyEntries=[];state.historyHasMore=true;}
+  if(!state.historyHasMore)return;
+  state.historyLoading=true;
+  if(state.view==='library'&&state.libraryTab==='history')updateLibraryContent();
+  try {
+    const last=state.historyEntries.at(-1);
+    const page=await readPlayHistory({limit:50,before:last?.playedAt??Infinity});
+    state.historyEntries.push(...page);
+    state.historyHasMore=page.length===50;
+  } catch(error){toast('播放历史读取失败：'+error.message,'error');}
+  finally {state.historyLoading=false;if(state.view==='library'&&state.libraryTab==='history')updateLibraryContent();}
+}
 function updateLibraryContent({ animate = false } = {}) {
   const target = document.getElementById('library-content');
   if (!target) return;
@@ -144,6 +159,7 @@ function renderPage({ restoreFocus = false } = {}) {
     } else if (state.view === 'library' && value !== state.libraryTab) {
       state.libraryTab = value;
       updateLibraryContent({ animate: true });
+      if(value==='history'&&!state.historyEntries.length)void loadHistoryPage(true);
     }
   });
   if (focusedSearch) {
@@ -332,6 +348,7 @@ function updateLyricHighlight(force = false) {
   if (!state.lyrics.length) return;
   const index = activeLyricIndex(state.lyrics, state.time);
   if (!force && state.activeLyric === index) return;
+  if(index!==state.activeLyric && lyricScrollSuspendUntil===Infinity)lyricScrollSuspendUntil=0;
   state.activeLyric = index;
   const viewport = document.getElementById('lyric-viewport');
   if (!viewport) return;
@@ -597,6 +614,17 @@ function handleAction(button) {
   const index=Number(button.dataset.index);
   switch(action) {
     case 'navigate': navigate(button.dataset.view);break;
+    case 'history-more':void loadHistoryPage();break;
+    case 'history-clear':void (async()=>{
+      if(!await showConfirmDialog('清空播放历史','这将永久删除当前浏览器中的全部播放历史，不影响收藏和歌单。',{confirm:'清空',destructive:true}))return;
+      try{await clearPlayHistory();state.historyEntries=[];state.historyHasMore=false;updateLibraryContent();toast('播放历史已清空');}
+      catch(e){toast(e.message,'error');}
+    })();break;
+    case 'history-play':{
+      const entry=state.historyEntries.find(x=>String(x.entryId)===id);
+      if(entry?.track)playCollection([entry.track],0);
+      break;
+    }
     case 'import': filePicker.click();break;
     case 'cycle-theme': {
       state.settings.theme=currentTheme()==='dark'?'light':'dark';applyTheme();persist();renderHeader();break;
@@ -800,8 +828,8 @@ app.addEventListener('change',e=>{
   if(e.target.id==='profile-type')document.getElementById('custom-rules-block').hidden=e.target.value!=='custom';
   if(e.target.id==='seek-bar'||e.target.id==='full-seek')seek((audio.duration||state.duration||0)*Number(e.target.value)/1000);
 });
-app.addEventListener('wheel',e=>{if(e.target.closest('#lyric-viewport'))lyricScrollSuspendUntil=Date.now()+5000;},{passive:true});
-app.addEventListener('pointerdown',e=>{if(e.target.closest('#lyric-viewport'))lyricScrollSuspendUntil=Date.now()+5000;},{passive:true});
+app.addEventListener('wheel',e=>{if(e.target.closest('#lyric-viewport'))lyricScrollSuspendUntil=Infinity;},{passive:true});
+app.addEventListener('pointerdown',e=>{if(e.target.closest('#lyric-viewport'))lyricScrollSuspendUntil=Infinity;},{passive:true});
 app.addEventListener('error',e=>{
   if(e.target.matches('.album-art img')){e.target.parentElement?.classList.add('image-failed');e.target.remove();}
 },true);

@@ -88,6 +88,14 @@ export function searchMarkup(state) {
 }
 
 export function libraryContentMarkup(state) {
+  if(state.libraryTab==='history') {
+    const rows=(state.historyEntries||[]).map(entry=>{
+      const song=entry.track||{};
+      const time=new Date(entry.playedAt);
+      return `<button class="history-entry" data-action="history-play" data-id="${e(entry.entryId)}">${albumArt(song,'row')}<span class="history-entry-text"><strong>${e(song.title||'未知歌曲')}</strong><small>${e(song.artist||'未知歌手')} · ${e(time.toLocaleString('zh-CN'))}</small></span>${icon('play',18)}</button>`;
+    }).join('');
+    return `<div class="history-tools"><span>完整播放历史 · ${state.historyEntries.length} 条已加载</span><button class="button button-quiet" data-action="history-clear">清空历史</button></div>${rows||'<div class="empty-state"><h2>还没有播放历史</h2><p>开始播放歌曲后会自动记录。</p></div>'}${state.historyHasMore?'<button class="button button-secondary history-more" data-action="history-more">加载更多</button>':''}${state.historyLoading?'<p class="history-loading">正在读取历史…</p>':''}`;
+  }
   const lists = { favorites: state.favorites, recent: state.recent, local: state.localFiles };
   const list = lists[state.libraryTab] || [];
   return list.length ? rowsMarkup(list.map(t=>({...t,favorite:state.favorites.some(f=> (f.source==='local'?'local':f.providerNamespace||'netease') === (t.source==='local'?'local':t.providerNamespace||'netease') && f.id===t.id)})),{context:state.libraryTab,removable:state.libraryTab==='local'}) : emptyState(state.libraryTab==='favorites' ? '还没有喜欢的歌曲' : state.libraryTab==='recent' ? '尚无播放记录' : '本地音乐库是空的', state.libraryTab==='local' ? '可导入自己的 MP3、FLAC 等音频文件，存储在本浏览器中。' : '播放喜欢的歌曲，点击爱心就能收藏。', state.libraryTab==='local' ? `<button class="button button-primary" data-action="import">${icon('upload',16)} 导入本地歌曲</button>` : `<button class="text-action" data-action="navigate" data-view="search">去搜索 ${icon('chevronRight',16)}</button>`);
@@ -95,7 +103,7 @@ export function libraryContentMarkup(state) {
 
 export function libraryMarkup(state) {
   return `<div class="page page-library"><div class="page-intro library-intro"><div><h1>你的音乐库</h1><p>喜欢的音乐，都在这里。</p></div><button class="button button-quiet" data-action="import">${icon('upload',17)} 导入音乐</button></div>
-  <div class="library-header">${segmentedMarkup([{value:'favorites',label:`我喜欢的 · ${state.favorites.length}`},{value:'recent',label:'最近播放'},{value:'local',label:'本地歌曲'}],state.libraryTab,'library-segmented')}</div>
+  <div class="library-header">${segmentedMarkup([{value:'favorites',label:`我喜欢的 · ${state.favorites.length}`},{value:'recent',label:'最近播放'},{value:'history',label:'播放历史'},{value:'local',label:'本地歌曲'}],state.libraryTab,'library-segmented')}</div>
   <div class="library-content" id="library-content" aria-live="polite">${libraryContentMarkup(state)}</div>
   <p class="library-footnote">收藏和播放记录只保存在当前浏览器，不会上传到音乐 API。清除浏览器网站数据会删除本地收藏及已导入的音频文件。</p></div>`;
 }

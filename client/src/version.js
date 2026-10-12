@@ -1,1 +1,1 @@
-export const versionInfo = Object.freeze({version:'0.2.9',build:'history-keyboard-foundation'});
+export const versionInfo = Object.freeze({version:'0.2.10',build:'history-library-lyrics'});
