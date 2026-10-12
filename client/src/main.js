@@ -1,10 +1,11 @@
+import './ui/keyboard.css';
 import './ui/ambient.css';
 import './ui/history.css';
 import { sharedPlaylistTransition, isPlaylistTransitionRunning, interruptPlaylistTransition } from './ui/playlist-transition.js';
 import { recordPlayHistory, readPlayHistory, clearPlayHistory, allPlayHistory, replaceHistory } from './core/history.js';
 import { mountCollections } from './ui/collections-controller.js';
 import './ui/collections.css';
-import { installKeyboardShortcuts } from './core/keyboard.js';
+import { installKeyboardShortcuts,parseShortcutForm,comboFromEvent,formatCombo,defaultBindings } from './core/keyboard.js';
 import { networkLog, installNetworkDebug } from './api/network-debug.js';
 import {cachedResource,smartRetry,isOffline} from './api/resilience.js';
 import { versionInfo } from './version.js';
@@ -654,6 +655,7 @@ function handleAction(button) {
       state.settings.theme=currentTheme()==='dark'?'light':'dark';applyTheme();persist();renderHeader();break;
     }
     case 'settings': state.settingsOpen=true;state.apiView='settings';renderOverlay();document.getElementById('theme-setting')?.focus();break;
+    case 'reset-shortcuts':{for(const [id,bind] of Object.entries(defaultBindings())){const input=document.querySelector(`[name="shortcut-${id}"]`),scope=document.querySelector(`[name="scope-${id}"]`),check=document.querySelector(`[name="enabled-${id}"]`);if(input)input.value=bind.combo;if(scope)scope.value=bind.scope;if(check)check.checked=true;}toast('默认快捷键已填入，点击保存设置生效');break;}
     case 'close-settings':state.settingsOpen=false;renderOverlay();break;
     case 'developer-tap': {devTapCount++;if(devTapCount>=5){developerMode=true;globalThis.__AIMO_DEV__=true;sessionStorage.setItem('aimo-dev-mode','1');toast('开发者模式已启用');document.getElementById('settings-overlay')?.remove();renderOverlay();}break;}
     case 'developer-export': {const blob=new Blob([JSON.stringify({version:versionInfo,origin:location.origin,entries:networkLog.entries},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='aimomusic-network-report.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);break;}
@@ -846,12 +848,21 @@ app.addEventListener('submit',e=>{
   if(e.target.id==='settings-form') {
     e.preventDefault();
     const data=new FormData(e.target);
-    state.settings={...state.settings,theme:String(data.get('theme')),ambient:String(data.get('ambient')||'glow'),quality:String(data.get('quality')),apiMode:String(data.get('apiMode'))};
+    let shortcuts;try{shortcuts=parseShortcutForm(e.target);}catch(error){toast(error.message,'error');return;}
+    state.settings={...state.settings,shortcuts,theme:String(data.get('theme')),ambient:String(data.get('ambient')||'glow'),quality:String(data.get('quality')),apiMode:String(data.get('apiMode'))};
     try {configureApi();}catch(err){toast(err.message,'error');return;}
     applyTheme();persist();state.settingsOpen=false;renderHeader();renderPlayer();renderOverlay();updateAmbient();toast('设置已保存');
     if(state.view==='home')loadFeatured();
   }
 });
+app.addEventListener('keydown',e=>{
+  const target=e.target;
+  if(!target.matches?.('[data-shortcut]'))return;
+  e.preventDefault();e.stopImmediatePropagation();
+  const combo=comboFromEvent(e);
+  if(combo){target.value=combo;const feedback=document.getElementById('shortcut-feedback');if(feedback)feedback.textContent='已录入 '+formatCombo(combo)+'，保存设置后生效';}
+  else if(!['Control','Shift','Alt','Meta'].includes(e.key)){const feedback=document.getElementById('shortcut-feedback');if(feedback)feedback.textContent='该组合键由浏览器保留，不能覆盖';}
+},true);
 app.addEventListener('input',e=>{
   if(e.target.id==='volume-slider') {
     const volume=Math.max(0,Math.min(1,Number(e.target.value)));
@@ -886,11 +897,7 @@ document.addEventListener('keydown',e=>{
     }
     return;
   }
-  if(e.key==='Escape'){if (document.querySelector('body > .dialog-overlay:not(.is-leaving)')) return; closeTopOverlay();return;}
-  if(['INPUT','TEXTAREA','SELECT','BUTTON'].includes(document.activeElement?.tagName)||document.activeElement?.isContentEditable)return;
-  if(e.code==='Space'&&state.current){e.preventDefault();state.playing?pause():resume();}
-  if(e.altKey&&e.key==='ArrowRight')next();
-  if(e.altKey&&e.key==='ArrowLeft')previous();
+  // 播放和导航按键由统一的可配置快捷键管理器处理。
 });
 window.addEventListener('online',()=>{
   toast('网络已恢复，正在更新在线内容');
@@ -922,7 +929,7 @@ installKeyboardShortcuts({
   'KeyF': () => { if(state.current) toggleFavorite(state.current); },
   'KeyQ': () => { state.queueOpen=!state.queueOpen; renderOverlay(); },
   'KeyL': () => { if(state.current){state.fullOpen=true;state.fullPanel=state.fullPanel==='lyrics'?'cover':'lyrics';renderOverlay();} },
-});
+},{getBindings:()=>state.settings.shortcuts,getContext:()=>({player:state.fullOpen,library:state.view==='library',search:state.view==='search',home:state.view==='home'})});
 
 audio.addEventListener('timeupdate',()=>{state.time=audio.currentTime||0;updateProgress();updateLyricHighlight();});
 audio.addEventListener('loadedmetadata',()=>{state.duration=Number.isFinite(audio.duration)?audio.duration:(state.current?.duration||0);updateProgress();});

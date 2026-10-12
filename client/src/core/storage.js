@@ -1,4 +1,5 @@
 import { sanitizeProfiles, BUILTIN_ID } from '../api/providers.js';
+import { validateBindings } from './keyboard.js';
 const KEY = 'aimo-music-v1';
 export const defaultSettings = Object.freeze({
   theme: 'system', volume: 0.75, quality: 'standard', ambient: 'glow',
@@ -21,6 +22,7 @@ export function sanitizeSettings(candidate) {
   return {
     theme: allowed(raw.theme, ['system','light','dark'], defaultSettings.theme),
     ambient: allowed(raw.ambient,['glow','blur','gradient','single','off'],'glow'),
+    shortcuts:validateBindings(raw.shortcuts),
     quality: allowed(raw.quality, ['standard','higher','exhigh','lossless'], defaultSettings.quality),
     apiMode: allowed(raw.apiMode, ['auto','direct','proxy'], defaultSettings.apiMode),
     apiBase,
