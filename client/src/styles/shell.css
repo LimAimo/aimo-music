@@ -127,3 +127,7 @@ body.overlay-open, body.modal-open { overflow: hidden; }
 @keyframes page-slide-from-right{from{opacity:.45;transform:translateX(22px)}to{opacity:1;transform:translateX(0)}}
 @keyframes page-slide-from-left{from{opacity:.45;transform:translateX(-22px)}to{opacity:1;transform:translateX(0)}}
 @media(prefers-reduced-motion:reduce){.page.page-enter-from-right,.page.page-enter-from-left{animation:none}}
+
+/* v0.2.6：恢复顶栏舒适的垂直留白，同时保留纤细导航 */
+.app-shell{--app-header-height:84px}
+.main-view{padding-top:calc(var(--app-header-height) + 28px)}
