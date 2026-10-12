@@ -21,7 +21,7 @@ AimoChat 视觉规范下的纯前端网页音乐播放器。无账号、无独�
 需要 Node.js 20.19+ 或 22.12+。在本目录执行：
 
 ```bash
-npm install --prefix client
+npm ci --prefix client
 npm run dev
 ```
 
@@ -84,4 +84,4 @@ docs/qa/                  修复验收记录与待验证事项
 
 ## 验证限制
 
-目前仓库没有锁文件；开发环境无 npm Registry 缓存时不能离线完成 Vite 构建。GitHub Actions 使用在线安装构建，后续应由可连接 npm Registry 的环境生成、提交 `client/package-lock.json` 并将 CI 切换为 `npm ci`。在线音乐 API、移动端触控和浏览器焦点仍需要在实际运行环境验证，详见 [质量记录](docs/qa/0.1.2.md)。
+已提交 `client/package-lock.json` 锁定依赖树，GitHub Actions 使用 `npm ci` 构建。在没有 npm Registry 缓存的离线环境中依然无法下载 Vite，但远端工作流已能安装并构建。在线音乐 API、移动端触控和浏览器焦点仍需要在实际运行环境验证，详见 [质量记录](docs/qa/0.1.2.md)。
