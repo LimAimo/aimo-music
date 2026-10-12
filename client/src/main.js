@@ -281,7 +281,9 @@ function openPlayer(panel='cover'){
 }
 function closePlayer(){
   if(!state.fullOpen)return;
-  const from=document.querySelector('#full-player:not(.is-leaving) .album-art--full');
+  const full=document.querySelector('#full-player:not(.is-leaving)');
+  const from=full?.querySelector('.album-art--full');
+  full?.classList.add('is-shared-leaving');
   state.fullOpen=false;renderOverlay();
   animateCoverTransition(from,document.querySelector('#player-slot .mini-now .album-art'));
 }
