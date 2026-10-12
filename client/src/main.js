@@ -1,4 +1,4 @@
-import { sharedPlaylistTransition, isPlaylistTransitionRunning } from './ui/playlist-transition.js';
+import { sharedPlaylistTransition, isPlaylistTransitionRunning, interruptPlaylistTransition } from './ui/playlist-transition.js';
 import { networkLog, installNetworkDebug } from './api/network-debug.js';
 import { versionInfo } from './version.js';
 import { MusicApi, DEFAULT_API_BASE } from './api/music.js';
@@ -31,7 +31,7 @@ const state = {
   featured: [], featuredLoading: true, featuredFailed: false,
   searchType: 'songs', searchQuery: '', searchSongs: [], searchPlaylists: [], searchLoading: false, searchError: '',
   libraryTab: 'favorites', localFiles: [],
-  playlistId: null, playlist: null, playlistLoading: false, playlistError: '',
+  playlistId: null, playlist: null, playlistPreview: null, playlistLoading: false, playlistError: '',
   lyrics: [], lyricsLoading: false, lyricsError: '', activeLyric: -1,
   apiView: 'settings', apiEditingId: null, apiDraft: null, apiFallback: null, playlistProviderId: null, playlistNamespace: null,
 };
@@ -341,10 +341,13 @@ function updateLyricHighlight(force = false) {
   }
 }
 function navigate(view, { record = true, skipShared = false } = {}) {
-  if (!skipShared && state.view === 'playlist' && view === 'home' && sharedPlaylistOrigin?.view === 'home' && !isPlaylistTransitionRunning()) {
+  if (!skipShared && state.view === 'playlist' && view === 'home' && sharedPlaylistOrigin?.view === 'home') {
     const origin=sharedPlaylistOrigin;
     sharedPlaylistOrigin=null;
-    void sharedPlaylistTransition({source:document.querySelector('.page-playlist .playlist-hero .album-art'),render:()=>navigate('home',{record,skipShared:true}),restoreScroll:origin.scrollY,target:()=>[...document.querySelectorAll('.home-discover .playlist-card')].find(x=>x.dataset.id===origin.id&&x.dataset.providerId===origin.providerId)?.querySelector('.album-art')});
+    playlistController?.abort();
+    const snapshots=interruptPlaylistTransition();
+    const card=()=>[...document.querySelectorAll('.home-discover .playlist-card')].find(x=>x.dataset.id===origin.id&&x.dataset.providerId===origin.providerId);
+    void sharedPlaylistTransition({source:document.querySelector('.page-playlist .playlist-hero .album-art'),sourceTitle:document.querySelector('.page-playlist .shared-title-target'),fromSnapshots:snapshots,render:()=>navigate('home',{record,skipShared:true}),restoreScroll:origin.scrollY,target:()=>card()?.querySelector('.album-art'),targetTitle:()=>card()?.querySelector('.playlist-title')});
     return;
   }
   if (state.view === 'playlist' && view !== 'home') sharedPlaylistOrigin=null;
@@ -415,15 +418,17 @@ async function openPlaylist(id, { record = true, providerId = null, namespace = 
   else if(record)sharedPlaylistOrigin=null;
   const backView = state.view === 'search' ? 'search' : state.view === 'library' ? 'library' : 'home';
   if (record) window.history.pushState({view:'playlist',id,providerId,namespace}, '', window.location.href);
+  state.playlistPreview=isFeatured ? state.featured.find(x=>String(x.id)===String(id))||null : null;
   state.view='playlist'; state.backView=backView; state.playlistId=id; state.playlistProviderId=providerId; state.playlistNamespace=namespace; state.playlistLoading=true; state.playlistError=''; state.playlist=null;
   playlistController?.abort();
   const controller = new AbortController(); playlistController=controller;
-  if(isFeatured) {
-    await sharedPlaylistTransition({source:sourceElement.querySelector('.album-art'),render:()=>{renderHeader();renderPage();window.scrollTo({top:0,behavior:'instant'});},target:()=>document.querySelector('.page-playlist .shared-cover-target')});
-  } else {renderHeader();renderPage();window.scrollTo({top:0,behavior:'instant'});}
-  try { state.playlist = await api.playlistDetail(id,controller.signal,state.playlistProviderId,state.playlistNamespace); state.apiFallback=api.lastFallback; }
+  const transition=isFeatured
+    ? sharedPlaylistTransition({source:sourceElement.querySelector('.album-art'),sourceTitle:sourceElement.querySelector('.playlist-title'),render:()=>{renderHeader();renderPage();window.scrollTo({top:0,behavior:'instant'});},target:()=>document.querySelector('.page-playlist .shared-cover-target'),targetTitle:()=>document.querySelector('.page-playlist .shared-title-target')})
+    : (renderHeader(),renderPage(),window.scrollTo({top:0,behavior:'instant'}),Promise.resolve());
+  // 网络加载与动画并行，但加载完成后等转场交接完毕再重绘。
+  try { const result=await api.playlistDetail(id,controller.signal,state.playlistProviderId,state.playlistNamespace);if(!controller.signal.aborted){state.playlist=result;state.apiFallback=api.lastFallback;} }
   catch (err) { if (controller.signal.aborted) return; state.playlistError=err.message || '网络请求失败'; }
-  finally { if (playlistController===controller) { state.playlistLoading=false; renderPage(); } }
+  finally { await transition; if (playlistController===controller && !controller.signal.aborted && state.view==='playlist') {state.playlistLoading=false;renderPage();} }
 }
 async function loadLyricsFor(song) {
   state.lyrics=[]; state.activeLyric=-1; state.lyricsError='';

@@ -1,51 +1,64 @@
-// 歌单封面共享元素转场：独立的固定定位层，避免异步歌单数据造成跳帧。
-const DURATION = 380;
-const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
-let running = false;
-export const isPlaylistTransitionRunning = () => running;
-const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-function box(el) {const r=el.getBoundingClientRect();return {left:r.left,top:r.top,width:r.width,height:r.height};}
-function usable(el){if(!el)return false;const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight;}
-function animate(el,frames,options){return el.animate(frames,{duration:DURATION,easing:EASE,fill:'both',...options});}
-export async function sharedPlaylistTransition({source,render,target,restoreScroll}) {
-  if(running)return false;
-  running=true;
-  const main=document.getElementById('main-view');
-  const oldPage=main?.firstElementChild;
-  const supported=!!source&&usable(source)&&!reduceMotion()&&typeof source.animate==='function';
-  let ghost=null,shade=null,sourceHidden=false,targetHidden=false,targetEl=null;
-  try {
-    const start=supported?box(source):null;
-    if(supported){
-      ghost=source.cloneNode(true);
-      ghost.classList.add('shared-cover-ghost');
-      Object.assign(ghost.style,{position:'fixed',left:start.left+'px',top:start.top+'px',width:start.width+'px',height:start.height+'px',margin:'0',pointerEvents:'none',zIndex:'1002',transformOrigin:'top left'});
-      document.body.appendChild(ghost);
-      source.style.visibility='hidden';sourceHidden=true;
-      shade=document.createElement('div');shade.className='shared-transition-shade';document.body.appendChild(shade);
+// 歌单封面和名称共享元素：保留动画中的真实位置，允许点击返回时直接逆转。
+const DURATION=380, EASE='cubic-bezier(0.22, 1, 0.36, 1)';
+let active=null;
+export const isPlaylistTransitionRunning=()=>!!active;
+const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+const rect=el=>{const r=el.getBoundingClientRect();return {left:r.left,top:r.top,width:r.width,height:r.height};};
+const visible=el=>{if(!el)return false;const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight;};
+const motion=(el,frames,duration=DURATION)=>el.animate(frames,{duration,easing:EASE,fill:'both'});
+function createGhost(el,type){
+  const r=rect(el),ghost=el.cloneNode(true);
+  ghost.classList.add('shared-transition-ghost',type==='title'?'shared-title-ghost':'shared-cover-ghost');
+  Object.assign(ghost.style,{position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',margin:0,pointerEvents:'none',zIndex:'1002',transformOrigin:'top left'});
+  if(type==='title'){const css=getComputedStyle(el);ghost.style.font=css.font;ghost.style.color=css.color;ghost.style.lineHeight=css.lineHeight;ghost.style.whiteSpace='nowrap';ghost.style.overflow='hidden';}
+  document.body.appendChild(ghost);return ghost;
+}
+function cleanup(tx){
+  tx.animations.forEach(a=>a.cancel());
+  tx.ghosts.forEach(g=>g.remove());
+  tx.hidden.forEach(el=>{if(el.isConnected)el.style.visibility='';});
+  tx.shade?.remove();
+  if(active===tx)active=null;
+}
+export function interruptPlaylistTransition(){
+  if(!active)return null;
+  const tx=active;
+  const snapshots=tx.ghosts.map(g=>({type:g.classList.contains('shared-title-ghost')?'title':'cover',rect:rect(g),node:g.cloneNode(true)}));
+  cleanup(tx);return snapshots;
+}
+export async function sharedPlaylistTransition({source,sourceTitle,render,target,targetTitle,restoreScroll,fromSnapshots}){
+  if(active)return false;
+  const tx={animations:[],ghosts:[],hidden:[],shade:null};active=tx;
+  const sources=fromSnapshots||[{type:'cover',element:source},{type:'title',element:sourceTitle}].filter(x=>visible(x.element));
+  const canAnimate=!reduced()&&typeof Element.prototype.animate==='function';
+  try{
+    if(canAnimate)for(const item of sources){
+      const ghost=item.node||createGhost(item.element,item.type);
+      if(item.node){const r=item.rect;Object.assign(ghost.style,{position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',margin:0,pointerEvents:'none',zIndex:'1002',transformOrigin:'top left'});document.body.appendChild(ghost);}
+      tx.ghosts.push(ghost);
+      if(item.element){item.element.style.visibility='hidden';tx.hidden.push(item.element);}
     }
-    // render 可同步切换页面。返回时必须先恢复旧滚动位置再测量目标。
     render();
     if(restoreScroll!=null)scrollTo({top:restoreScroll,behavior:'instant'});
-    targetEl=target?.()||null;
-    const end=targetEl&&usable(targetEl)?box(targetEl):null;
-    if(!start||!end||!ghost){return true;}
-    targetEl.style.visibility='hidden';targetHidden=true;
-    const dx=end.left-start.left,dy=end.top-start.top;
-    const sx=end.width/start.width,sy=end.height/start.height;
-    const radiusStart=getComputedStyle(source).borderRadius;
-    const radiusEnd=getComputedStyle(targetEl).borderRadius;
-    const motions=[
-      animate(ghost,[{transform:'translate(0,0) scale(1,1)',borderRadius:radiusStart},{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`,borderRadius:radiusEnd}]),
-      animate(shade,[{opacity:0},{opacity:1},{opacity:0}],{easing:'ease-in-out'}),
-    ];
-    const page=main?.firstElementChild;
-    if(page)motions.push(animate(page,[{opacity:0},{opacity:1}],{duration:300,easing:'ease-out'}));
-    await Promise.allSettled(motions.map(x=>x.finished));
+    if(!canAnimate||!tx.ghosts.length)return true;
+    tx.shade=document.createElement('div');tx.shade.className='shared-transition-shade';document.body.appendChild(tx.shade);
+    for(const ghost of tx.ghosts){
+      const isTitle=ghost.classList.contains('shared-title-ghost');
+      const dest=isTitle?targetTitle?.():target?.();
+      if(!visible(dest))continue;
+      dest.style.visibility='hidden';tx.hidden.push(dest);
+      const a=rect(ghost),b=rect(dest);
+      const sx=b.width/a.width,sy=b.height/a.height;
+      if(isTitle){
+        const startSize=parseFloat(getComputedStyle(ghost).fontSize)||13;
+        const endSize=parseFloat(getComputedStyle(dest).fontSize)||startSize;
+        tx.animations.push(motion(ghost,[{transform:'translate(0,0) scale(1)',opacity:1},{transform:`translate(${b.left-a.left}px,${b.top-a.top}px) scale(${endSize/startSize})`,opacity:1}]));
+      }else tx.animations.push(motion(ghost,[{transform:'translate(0,0) scale(1,1)'},{transform:`translate(${b.left-a.left}px,${b.top-a.top}px) scale(${sx},${sy})`}]));
+    }
+    tx.animations.push(motion(tx.shade,[{opacity:0},{opacity:.12},{opacity:0}]));
+    const page=document.querySelector('#main-view .page');
+    if(page)tx.animations.push(motion(page,[{opacity:.4},{opacity:1}],300));
+    await Promise.allSettled(tx.animations.map(a=>a.finished));
     return true;
-  } finally {
-    if(sourceHidden&&source)source.style.visibility='';
-    if(targetHidden&&targetEl?.isConnected)targetEl.style.visibility='';
-    ghost?.remove();shade?.remove();running=false;
-  }
+  }finally{cleanup(tx);}
 }
