@@ -186,10 +186,10 @@ function updateAmbient() {
   for(const element of document.querySelectorAll('.player-shell,#full-player')){
     // 迷你播放器与全屏播放器的背景是两套独立配置。
     if(element.classList.contains('player-shell')){
-      const value=Math.max(0,Math.min(100,Number(state.settings.miniTransparency??55)));
+      const value=Math.max(0,Math.min(100,Number(state.settings.miniTransparency??15)));
       element.style.setProperty('--mini-surface-opacity', (100-value)+'%');
     }
-    const mode=state.settings.ambient||'glow';
+    const mode=state.settings.ambient||'off';
     element.dataset.ambient=mode;
     const image=element.querySelector('.album-art img');
     const src=image?.getAttribute('src')||'';
@@ -333,8 +333,7 @@ function renderOverlay() {
       const fullPlay = full.querySelector('.transport-play-full');
       if (fullPlay) fullPlay.innerHTML = icon(state.playing ? 'pause' : 'play', 26);
       full.querySelectorAll('[data-action="toggle-lyrics"]').forEach(button => {
-        const heading = button.closest('.lyric-heading');
-        button.innerHTML = heading ? (showLyrics ? '返回封面' : '歌词') : `${icon('lyric',18)} ${showLyrics ? '返回封面' : '打开歌词'}`;
+        button.innerHTML = `${icon('lyric',18)} ${showLyrics ? '返回封面' : '打开歌词'}`;
       });
       const favorite = full.querySelector('[data-action="favorite-current"]');
       favorite?.classList.toggle('is-favorite', isFavorite(state.current));
@@ -381,7 +380,7 @@ function renderOverlay() {
   updateProgress();
   updateLyricHighlight(recreatedFull);
   // 关闭设置而未保存时，撤销滑块的临时预览。
-  if(!state.settingsOpen)document.querySelector('.player-shell')?.style.setProperty('--mini-surface-opacity',(100-Math.max(0,Math.min(100,Number(state.settings.miniTransparency??55))))+'%');
+  if(!state.settingsOpen)document.querySelector('.player-shell')?.style.setProperty('--mini-surface-opacity',(100-Math.max(0,Math.min(100,Number(state.settings.miniTransparency??15))))+'%');
 }
 function updatePlayingButtons() {
   renderPlayer();
@@ -905,7 +904,7 @@ app.addEventListener('submit',e=>{
     e.preventDefault();
     const data=new FormData(e.target);
     let shortcuts;try{shortcuts=parseShortcutForm(e.target);}catch(error){toast(error.message,'error');return;}
-    state.settings={...state.settings,shortcuts,theme:String(data.get('theme')),ambient:String(data.get('ambient')||'glow'),miniTransparency:Math.max(0,Math.min(100,Number(data.get('miniTransparency')??55))),quality:String(data.get('quality')),apiMode:String(data.get('apiMode'))};
+    state.settings={...state.settings,shortcuts,theme:String(data.get('theme')),ambient:String(data.get('ambient')||'glow'),miniTransparency:Math.max(0,Math.min(100,Number(data.get('miniTransparency')??15))),quality:String(data.get('quality')),apiMode:String(data.get('apiMode'))};
     try {configureApi();}catch(err){toast(err.message,'error');return;}
     applyTheme();persist();state.settingsOpen=false;renderHeader();renderPlayer();renderOverlay();updateAmbient();toast('设置已保存');
     if(state.view==='home')loadFeatured();
@@ -924,6 +923,7 @@ app.addEventListener('input',e=>{
     const amount=Math.max(0,Math.min(100,Number(e.target.value)));
     const output=document.getElementById('mini-transparency-value');
     if(output)output.textContent=amount+'%';
+    e.target.style.setProperty('--mini-slider-fill',amount+'%');
     document.querySelector('.player-shell')?.style.setProperty('--mini-surface-opacity',(100-amount)+'%');
   }
   if(e.target.id==='volume-slider') {
