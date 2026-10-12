@@ -1,3 +1,4 @@
+import './ui/lyrics-enhanced.css';
 import './ui/keyboard.css';
 import './ui/ambient.css';
 import './ui/history.css';
@@ -384,7 +385,7 @@ function updateLyricHighlight(force = false) {
   if (!state.lyrics.length) return;
   const index = activeLyricIndex(state.lyrics, state.time);
   if (!force && state.activeLyric === index) return;
-  if(index!==state.activeLyric && lyricScrollSuspendUntil===Infinity)lyricScrollSuspendUntil=0;
+  if(index!==state.activeLyric && lyricScrollSuspendUntil===Infinity){lyricScrollSuspendUntil=0;document.getElementById('full-lyric-section')?.classList.remove('is-manual');}
   state.activeLyric = index;
   const viewport = document.getElementById('lyric-viewport');
   if (!viewport) return;
@@ -742,6 +743,7 @@ function handleAction(button) {
       });break;
     }
     case 'seek-lyric':seek(Number(button.dataset.time));break;
+    case 'lyric-follow':lyricScrollSuspendUntil=0;document.getElementById('full-lyric-section')?.classList.remove('is-manual');updateLyricHighlight(true);break;
   }
 }
 function openApiView(view,id=null,draft=null) {
@@ -895,8 +897,8 @@ app.addEventListener('change',e=>{
   if(e.target.id==='profile-type')document.getElementById('custom-rules-block').hidden=e.target.value!=='custom';
   if(e.target.id==='seek-bar'||e.target.id==='full-seek')seek((audio.duration||state.duration||0)*Number(e.target.value)/1000);
 });
-app.addEventListener('wheel',e=>{if(e.target.closest('#lyric-viewport'))lyricScrollSuspendUntil=Infinity;},{passive:true});
-app.addEventListener('pointerdown',e=>{if(e.target.closest('#lyric-viewport'))lyricScrollSuspendUntil=Infinity;},{passive:true});
+app.addEventListener('wheel',e=>{if(e.target.closest('#lyric-viewport')){lyricScrollSuspendUntil=Infinity;document.getElementById('full-lyric-section')?.classList.add('is-manual');}},{passive:true});
+app.addEventListener('pointerdown',e=>{if(e.target.closest('#lyric-viewport')){lyricScrollSuspendUntil=Infinity;document.getElementById('full-lyric-section')?.classList.add('is-manual');}},{passive:true});
 app.addEventListener('error',e=>{
   if(e.target.matches('.album-art img')){e.target.parentElement?.classList.add('image-failed');e.target.remove();}
 },true);
