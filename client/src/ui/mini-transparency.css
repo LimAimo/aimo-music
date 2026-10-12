@@ -1,6 +1,6 @@
-/* 仅底部迷你播放器使用玻璃通透度，全屏播放页不受影响。 */
+/* 仅控制迷你播放器的玻璃通透度；完整播放页不受影响。 */
 .player-shell {
- background: color-mix(in srgb,var(--bg) var(--mini-surface-opacity,45%),transparent);
+ background: color-mix(in srgb,var(--bg) var(--mini-surface-opacity,85%),transparent);
  backdrop-filter: blur(24px) saturate(1.22);
  -webkit-backdrop-filter: blur(24px) saturate(1.22);
 }
@@ -12,13 +12,68 @@
 .player-shell[data-ambient="glow"]::before { opacity: .58; }
 .player-shell[data-ambient="gradient"]::before { opacity: .43; }
 .player-shell[data-ambient="single"]::before { opacity: .26; }
+
 .mini-transparency-control { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; }
 .mini-transparency-heading { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; }
 .mini-transparency-heading output { color: var(--accent); font-size: 13px; font-variant-numeric: tabular-nums; font-weight: 700; }
+
+/* 全局播放进度条通过 --seek-fill 绘制背景。这里不能再覆盖成 transparent，
+   否则 Android Chrome 的外观只剩一个滑块圆点。 */
 .settings-panel .form-section .mini-transparency-control input[type="range"] {
- display: block; width: 100%; min-height: 28px; height: 28px; padding: 0;
- border: 0; border-radius: 0; background: transparent; accent-color: var(--accent);
+ --mini-slider-fill: 15%;
+ display: block;
+ box-sizing: border-box;
+ -webkit-appearance: none;
+ appearance: none;
+ width: 100%;
+ height: 36px;
+ min-height: 36px;
+ padding: 0;
+ margin: 0;
+ border: 0;
+ border-radius: 0;
+ background: linear-gradient(to right,
+   var(--accent) 0 var(--mini-slider-fill),
+   var(--border) var(--mini-slider-fill) 100%) center / 100% 5px no-repeat;
+ background-color: transparent;
  cursor: pointer;
+ touch-action: pan-y;
+}
+.settings-panel .form-section .mini-transparency-control input[type="range"]::-webkit-slider-runnable-track {
+ height: 5px;
+ background: transparent;
+ border: 0;
+}
+.settings-panel .form-section .mini-transparency-control input[type="range"]::-webkit-slider-thumb {
+ -webkit-appearance: none;
+ appearance: none;
+ width: 19px;
+ height: 19px;
+ margin-top: -7px;
+ border-radius: 50%;
+ border: 3px solid var(--bg-elevated);
+ background: var(--accent);
+ box-shadow: 0 0 0 1px var(--border);
+ opacity: 1;
+}
+.settings-panel .form-section .mini-transparency-control input[type="range"]::-moz-range-track {
+ height: 5px;
+ background: transparent;
+ border: 0;
+}
+.settings-panel .form-section .mini-transparency-control input[type="range"]::-moz-range-thumb {
+ width: 19px;
+ height: 19px;
+ border-radius: 50%;
+ border: 3px solid var(--bg-elevated);
+ background: var(--accent);
+ box-shadow: 0 0 0 1px var(--border);
+ opacity: 1;
+}
+.settings-panel .form-section .mini-transparency-control input[type="range"]:focus-visible {
+ outline: 2px solid var(--accent);
+ outline-offset: 3px;
+ border-radius: 6px;
 }
 .settings-panel .form-section .mini-transparency-control p { margin: 0; line-height: 1.6; }
 @media (prefers-reduced-motion: reduce) {
