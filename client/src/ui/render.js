@@ -104,7 +104,7 @@ export function libraryContentMarkup(state) {
       previousDay=day;
       return group+`<button class="history-entry" data-action="history-play" data-id="${e(entry.entryId)}">${albumArt(song,'row')}<span class="history-entry-text"><strong>${e(song.title||'未知歌曲')}</strong><small>${e(song.artist||'未知歌手')} · ${e(time.toLocaleString('zh-CN'))}</small></span>${icon('play',18)}</button>`;
     }).join('');
-    return `<div class="history-tools"><span>完整播放历史 · ${state.historyEntries.length} 条已加载</span><button class="button button-quiet" data-action="history-clear">清空历史</button></div>${rows||'<div class="empty-state"><h2>还没有播放历史</h2><p>开始播放歌曲后会自动记录。</p></div>'}${state.historyHasMore?'<button class="button button-secondary history-more" data-action="history-more">加载更多</button>':''}${state.historyLoading?'<p class="history-loading">正在读取历史…</p>':''}`;
+    return `<div class="history-tools"><span>完整播放历史 · ${state.historyEntries.length} 条已加载</span><button class="button button-quiet" data-action="history-clear">清空历史</button></div>${statsShare}${rows||'<div class="empty-state"><h2>还没有播放历史</h2><p>开始播放歌曲后会自动记录。</p></div>'}${state.historyHasMore?'<button class="button button-secondary history-more" data-action="history-more">加载更多</button>':''}${state.historyLoading?'<p class="history-loading">正在读取历史…</p>':''}`;
   }
   const lists = { favorites: state.favorites, recent: state.recent, local: state.localFiles };
   const list = lists[state.libraryTab] || [];
