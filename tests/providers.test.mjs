@@ -140,6 +140,6 @@ test('CurrentStation 新响应结构与逐行歌词适配',async()=>{
     return json({});
   });
   const songs=await api.searchSongs('测试');assert.equal(songs[0].id,'9');assert.equal(songs[0].duration,123);
-  const lyrics=await api.lyrics(9);assert.match(lyrics.original,/\\[00:01.234\\]你好/);assert.match(lyrics.translation,/Hello/);
+  const lyrics=await api.lyrics(9);assert.match(lyrics.original,/\[00:01\.234\]你好/);assert.match(lyrics.translation,/Hello/);
   await assert.rejects(()=>api.audioUrl(9),/暂无可用播放地址/);
 });
