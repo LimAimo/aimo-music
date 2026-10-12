@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readLrc, parseLrc, activeLyricIndex, formatTime } from '../client/src/core/lyrics.js';
-import { nextQueueIndex, appendToQueue, pushRecent } from '../client/src/core/queue.js';
+import { nextQueueIndex, ShuffleHistory, appendToQueue, pushRecent } from '../client/src/core/queue.js';
 import { readPersisted, savePersisted } from '../client/src/core/storage.js';
 
 test('LRC 毫秒、重复时间戳和 offset 正确解析',()=>{
@@ -25,7 +25,9 @@ test('队列循环、随机和单曲循环',()=>{
   const s={queue:[{id:'1'},{id:'2'},{id:'3'}],queueIndex:2,repeat:'off',shuffle:false};
   assert.equal(nextQueueIndex(s),-1);
   assert.equal(nextQueueIndex({...s,repeat:'all'}),0);
-  assert.equal(nextQueueIndex({...s,repeat:'one'}),2);
+  assert.equal(nextQueueIndex({...s,repeat:'one'}),-1);
+  assert.equal(nextQueueIndex({...s,repeat:'one'},1,Math.random,'ended'),2);
+  assert.equal(nextQueueIndex({...s,repeat:'one',queueIndex:1}),2);
   assert.equal(nextQueueIndex({...s,shuffle:true},1,()=>0),0);
 });
 test('最近播放去重且保序，加入队列不更改原数组',()=>{
@@ -42,4 +44,30 @@ test('本地存储损坏时回退，保存及恢复关键设置',()=>{
   assert.equal(savePersisted(data,storage),true);
   assert.equal(readPersisted(storage).settings.theme,'dark');
   assert.equal(readPersisted(storage).repeat,'one');
+});
+
+test('随机队列每轮不重复，上一首回放历史，前进复用历史', () => {
+  const history = new ShuffleHistory(() => 0);
+  history.reset([{id:'a'},{id:'b'},{id:'c'}], 1);
+  assert.equal(history.next('off'),0);
+  assert.equal(history.next('off'),2);
+  assert.equal(history.next('off'),-1);
+  assert.equal(history.previous(),0);
+  assert.equal(history.next('off'),2);
+  assert.equal(history.next('all'),0);
+});
+test('超长队列可添加并保持索引', () => {
+  const tracks = Array.from({length:501},(_,i)=>({id:String(i)}));
+  assert.equal(appendToQueue(tracks,{id:'501'}).length,502);
+});
+test('存储设置及队列恢复需校验非法值',()=>{
+  const state={queue:[{id:'a',title:'A',source:'remote'}],queueIndex:500,settings:{volume:2,theme:'unexpected',apiMode:'invalid',apiBase:'javascript:1'},shuffle:'false'};
+  const storage={getItem:()=>JSON.stringify(state)};
+  const recovered=readPersisted(storage);
+  assert.equal(recovered.queueIndex,-1);
+  assert.equal(recovered.settings.volume,1);
+  assert.equal(recovered.settings.theme,'system');
+  assert.equal(recovered.settings.apiMode,'auto');
+  assert.equal(recovered.shuffle,false);
+  assert.match(recovered.settings.apiBase,/^https:/);
 });

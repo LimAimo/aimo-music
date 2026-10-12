@@ -82,7 +82,8 @@ export class MusicApi {
     if (!response.ok) throw new Error(`音乐 API 返回 HTTP ${response.status}`);
     try {
       const data = await response.json();
-      if (data?.code != null && Number(data.code) >= 400) throw new Error(`音乐 API 返回错误 ${data.code}`);
+      if (!data || typeof data !== 'object') throw new Error('音乐 API 返回了无效响应');
+      if (data.code != null && Number(data.code) !== 200) throw new Error(`音乐 API 返回错误 ${data.code}${data.msg ? `：${String(data.msg).slice(0, 100)}` : ''}`);
       return data;
     } catch (error) {
       if (error instanceof SyntaxError) throw new Error('音乐 API 未返回有效 JSON');
@@ -116,14 +117,17 @@ export class MusicApi {
   async playlistDetail(id, signal) {
     const data = await this.get('playlist/detail', { id }, signal);
     const raw = data?.playlist || data?.result || {};
-    let tracks = (raw.tracks || []).map(normalizeTrack).filter(Boolean);
-    // 部分接口默认只返回部分 tracks，详情为空时再拉取 trackIds 的详情。
-    if (!tracks.length && raw.trackIds?.length) {
-      const ids = raw.trackIds.slice(0, 100).map(t => t.id).filter(Boolean);
-      const songData = await this.get('song/detail', { ids: ids.join(',') }, signal);
-      tracks = (songData?.songs || []).map(normalizeTrack).filter(Boolean);
+    const tracks = (raw.tracks || []).map(normalizeTrack).filter(Boolean);
+    const byId = new Map(tracks.map(track => [track.id, track]));
+    const trackIds = (raw.trackIds || []).map(track => String(track?.id ?? '')).filter(Boolean);
+    const missing = [...new Set(trackIds)].filter(trackId => !byId.has(trackId));
+    // 歌单可返回少量 tracks 和完整 trackIds；每批请求缺失部分，保持原顺序。
+    for (let start = 0; start < missing.length; start += 100) {
+      const songData = await this.get('song/detail', { ids: missing.slice(start, start + 100).join(',') }, signal);
+      for (const track of (songData?.songs || []).map(normalizeTrack).filter(Boolean)) byId.set(track.id, track);
     }
-    return { ...normalizePlaylist(raw), tracks };
+    const ordered = trackIds.length ? trackIds.map(trackId => byId.get(trackId)).filter(Boolean) : tracks;
+    return { ...normalizePlaylist(raw), tracks: [...new Map(ordered.map(track => [track.id, track])).values()], count: raw.trackCount ?? trackIds.length ?? ordered.length };
   }
 
   async lyrics(id, signal) {
@@ -137,11 +141,19 @@ export class MusicApi {
     try { data = await this.get('song/url/v1', params, signal); }
     catch (error) {
       if (signal?.aborted) throw error;
-      data = await this.get('song/url', { id, br: quality === 'exhigh' ? 320000 : 128000 }, signal);
+      data = null;
     }
-    let item = data?.data?.[0] || data?.data || data?.result;
-    if (Array.isArray(item)) item = item[0];
-    const url = safeExternalUrl(item?.url || '');
+    const pickUrl = response => {
+      let item = response?.data?.[0] || response?.data || response?.result;
+      if (Array.isArray(item)) item = item[0];
+      return safeExternalUrl(item?.url || '');
+    };
+    let url = pickUrl(data);
+    // 只尝试公开可用的旧接口，不绕过上游鉴权/付费限制。
+    if (!url) {
+      data = await this.get('song/url', { id, br: quality === 'exhigh' ? 320000 : 128000 }, signal);
+      url = pickUrl(data);
+    }
     if (!url) throw new Error('这首歌曲暂无可用播放地址，可能存在版权或会员限制。');
     return url;
   }

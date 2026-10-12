@@ -1,0 +1,21 @@
+name: 质量检查
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 安装前端依赖
+        run: npm install --prefix client --no-audit --no-fund
+      - name: 运行自动化测试和语法检查
+        run: npm run check
+      - name: 验证生产构建
+        run: npm run build

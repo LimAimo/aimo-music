@@ -53,3 +53,8 @@ body.overlay-open, body.modal-open { overflow: hidden; }
 .form-section input, .form-section select { display: block; width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--bg-elevated); color: var(--text-primary); }
 .form-section p { font-size: 12px; line-height: 1.7; color: var(--text-tertiary); }
 #api-test-result { font-size: 12px; line-height: 1.6; color: var(--text-secondary); min-height: 0; }
+
+@media (pointer: coarse) {
+  .seg-item { min-height: 44px; }
+  .segmented { min-height: 48px; }
+}

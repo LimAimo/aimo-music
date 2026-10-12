@@ -49,3 +49,29 @@ test('非法内容不成为歌曲',()=>{
   assert.equal(normalizeTrack({name:'没有 id'}),null);
   assert.equal(normalizePlaylist({name:'没有 id'}),null);
 });
+
+test('HTTP 200 但业务错误 301 时不视为接口成功', async()=>{
+  const api=new MusicApi('https://example.com',mockFetch(()=>({code:301,msg:'need login'})));
+  await assert.rejects(()=>api.get('search'),/错误 301/);
+});
+test('大型歌单补齐缺失曲目，保留 trackIds 原始顺序',async()=>{
+  const seen=[];
+  const api=new MusicApi('https://example.com',mockFetch(url=>{
+    if(url.pathname==='/playlist/detail')return {code:200,playlist:{id:3,name:'大歌单',trackCount:203,tracks:[{id:2,name:'曲目2'}],trackIds:Array.from({length:203},(_,i)=>({id:i+1}))}};
+    const ids=url.searchParams.get('ids').split(','); seen.push(ids.length);
+    return {code:200,songs:ids.map(id=>({id,name:'曲目'+id}))};
+  }));
+  const detail=await api.playlistDetail(3);
+  assert.equal(detail.tracks.length,203);
+  assert.deepEqual([detail.tracks[0].id,detail.tracks[1].id,detail.tracks.at(-1).id],['1','2','203']);
+  assert.deepEqual(seen,[100,100,2]);
+});
+test('新接口空 URL 时检查旧接口；两者均空时报资源不可用',async()=>{
+  let count=0;
+  const api=new MusicApi('https://example.com',mockFetch(url=>{
+    count++;
+    return {code:200,data:[{url:url.pathname==='/song/url'?'https://example.com/test.mp3':null}]};
+  }));
+  assert.equal(await api.audioUrl('1'),'https://example.com/test.mp3');
+  assert.equal(count,2);
+});

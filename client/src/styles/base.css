@@ -70,3 +70,13 @@ input[type="range"]:hover::-moz-range-thumb, input[type="range"]:focus-visible::
 .skeleton::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg,transparent, color-mix(in srgb,var(--bg-elevated) 70%,transparent),transparent); animation: shimmer 1.5s infinite; }
 @keyframes shimmer { to { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+/* 精细指针默认保持轻量视觉；触屏滑块始终可见，不隐藏拖动目标。 */
+@media (hover: none), (pointer: coarse) {
+  input[type="range"] { min-height: 28px; background-clip: content-box; }
+  input[type="range"]::-webkit-slider-thumb { opacity: 1; width: 18px; height: 18px; }
+  input[type="range"]::-moz-range-thumb { opacity: 1; width: 18px; height: 18px; }
+}
+.transport-play.is-buffering { position: relative; }
+.transport-play.is-buffering::after { content: ''; position: absolute; inset: 3px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: loading-ring .8s linear infinite; pointer-events: none; }
+@keyframes loading-ring { to { transform: rotate(360deg); } }

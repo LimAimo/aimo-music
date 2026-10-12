@@ -110,7 +110,7 @@
   .song-main { gap: 8px; }
   .song-details strong { max-width: 42vw; font-size: 13px; }
   .song-details span { max-width: 42vw; }
-  .song-actions .icon-button { width: 39px; }
+  .song-actions .icon-button { width: 44px; min-height: 44px; }
   .album-art--row { width: 45px; height: 45px; }
   .song-index { display: none; }
   .playlist-hero { grid-template-columns: 128px minmax(0,1fr); gap: 20px; align-items: center; padding-bottom: 30px; }
@@ -139,7 +139,7 @@
   .library-segmented .seg-item { font-size: 11px; padding-inline: 3px; }
   .header-actions .icon-button { width: 39px; }
   .main-view { padding-inline: 15px; }
-  .song-actions .icon-button { width: 36px; }
+  .song-actions .icon-button { width: 44px; min-height: 44px; }
   .song-details strong,.song-details span { max-width: 43vw; }
   .full-content { padding-inline: 22px; }
   .search-form input { font-size: 16px; }
