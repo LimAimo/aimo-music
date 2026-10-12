@@ -1,3 +1,4 @@
+import { sharedPlaylistTransition, isPlaylistTransitionRunning } from './ui/playlist-transition.js';
 import { networkLog, installNetworkDebug } from './api/network-debug.js';
 import { versionInfo } from './version.js';
 import { MusicApi, DEFAULT_API_BASE } from './api/music.js';
@@ -52,6 +53,7 @@ let activeDialog = null;
 let focusBeforeOverlay = null;
 let searchVersion = 0;
 let pageTransitionDirection = 0;
+let sharedPlaylistOrigin = null;
 let easterSequence = 0;
 const easterPath = ['home','library','search','home'];
 
@@ -338,7 +340,14 @@ function updateLyricHighlight(force = false) {
     viewport.scrollTo({ top: Math.max(0, top), behavior: force || window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   }
 }
-function navigate(view, { record = true } = {}) {
+function navigate(view, { record = true, skipShared = false } = {}) {
+  if (!skipShared && state.view === 'playlist' && view === 'home' && sharedPlaylistOrigin?.view === 'home' && !isPlaylistTransitionRunning()) {
+    const origin=sharedPlaylistOrigin;
+    sharedPlaylistOrigin=null;
+    void sharedPlaylistTransition({source:document.querySelector('.page-playlist .playlist-hero .album-art'),render:()=>navigate('home',{record,skipShared:true}),restoreScroll:origin.scrollY,target:()=>[...document.querySelectorAll('.home-discover .playlist-card')].find(x=>x.dataset.id===origin.id&&x.dataset.providerId===origin.providerId)?.querySelector('.album-art')});
+    return;
+  }
+  if (state.view === 'playlist' && view !== 'home') sharedPlaylistOrigin=null;
   if (!['home', 'search', 'library'].includes(view)) return;
   if (record && state.view !== view) {
     if (view === easterPath[easterSequence + 1]) easterSequence++;
@@ -399,13 +408,19 @@ async function runSearch(query = state.searchQuery, { preserveTabs = false } = {
     if (searchController === controller && version === searchVersion) { state.searchLoading = false; if (preserveTabs) updateSearchResults(); else renderPage({ restoreFocus: true }); }
   }
 }
-async function openPlaylist(id, { record = true, providerId = null, namespace = null } = {}) {
+async function openPlaylist(id, { record = true, providerId = null, namespace = null, sourceElement = null } = {}) {
+  if (isPlaylistTransitionRunning()) return;
+  const isFeatured = record && state.view === 'home' && !!sourceElement?.closest('.home-discover');
+  if(isFeatured)sharedPlaylistOrigin={view:'home',id:String(id),providerId:providerId||'',scrollY:window.scrollY};
+  else if(record)sharedPlaylistOrigin=null;
   const backView = state.view === 'search' ? 'search' : state.view === 'library' ? 'library' : 'home';
   if (record) window.history.pushState({view:'playlist',id,providerId,namespace}, '', window.location.href);
   state.view='playlist'; state.backView=backView; state.playlistId=id; state.playlistProviderId=providerId; state.playlistNamespace=namespace; state.playlistLoading=true; state.playlistError=''; state.playlist=null;
   playlistController?.abort();
   const controller = new AbortController(); playlistController=controller;
-  renderHeader(); renderPage(); window.scrollTo({top:0,behavior:'instant'});
+  if(isFeatured) {
+    await sharedPlaylistTransition({source:sourceElement.querySelector('.album-art'),render:()=>{renderHeader();renderPage();window.scrollTo({top:0,behavior:'instant'});},target:()=>document.querySelector('.page-playlist .shared-cover-target')});
+  } else {renderHeader();renderPage();window.scrollTo({top:0,behavior:'instant'});}
   try { state.playlist = await api.playlistDetail(id,controller.signal,state.playlistProviderId,state.playlistNamespace); state.apiFallback=api.lastFallback; }
   catch (err) { if (controller.signal.aborted) return; state.playlistError=err.message || '网络请求失败'; }
   finally { if (playlistController===controller) { state.playlistLoading=false; renderPage(); } }
@@ -605,7 +620,7 @@ function handleAction(button) {
     case 'suggest-search':state.view='search';state.searchType='songs';renderHeader();void runSearch(button.dataset.query);break;
     case 'retry-search':void runSearch();break;
     case 'retry-featured':void loadFeatured();break;
-    case 'open-playlist':void openPlaylist(id,{providerId:button.dataset.providerId||null,namespace:button.dataset.namespace||null});break;
+    case 'open-playlist':void openPlaylist(id,{providerId:button.dataset.providerId||null,namespace:button.dataset.namespace||null,sourceElement:button});break;
     case 'retry-playlist':void openPlaylist(state.playlistId);break;
     case 'play-playlist':playCollection(state.playlist?.tracks||[],0);break;
     case 'play-row': {

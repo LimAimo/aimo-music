@@ -125,3 +125,9 @@
 .easter-record .hero-visual{width:min(100%,480px);height:340px;margin:0 auto}
 .easter-record .hero-small-mark{display:none}
 @media(max-width:767px){.easter-record .hero{padding:10px 0 28px}.easter-record .hero-visual{height:270px}.easter-record .hero-paper{width:215px}}
+
+/* 封面共享元素：固定层覆盖页面内容，但不遮挡固定顶栏交互 */
+.shared-cover-ghost{display:block;overflow:hidden;box-sizing:border-box;will-change:transform;border-radius:inherit;box-shadow:0 14px 38px rgba(0,0,0,.12)}
+.shared-cover-ghost img{display:block;width:100%;height:100%;object-fit:cover}
+.shared-transition-shade{position:fixed;inset:0;background:var(--bg);opacity:0;pointer-events:none;z-index:1000}
+@media(prefers-reduced-motion:reduce){.shared-cover-ghost,.shared-transition-shade{display:none}}
