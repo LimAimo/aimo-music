@@ -41,7 +41,7 @@ export function shareEditorMarkup(data){
  </section></div>`;
 }
 export function shareViewerMarkup(data){
- return `<div class="page share-public-page"><div class="share-public-header"><span class="share-eyebrow">AIMO MUSIC</span><h1>一份音乐分享</h1><p>来自 AimoMusic 的音乐卡片</p></div><div class="share-public-card">${cardMarkup(data)}</div><div class="share-public-actions"><button type="button" class="share-btn share-btn-primary" data-action="share-open-content">打开对应内容</button><button type="button" class="share-btn share-btn-secondary" data-action="share-recreate">制作同款卡片</button></div></div>`;
+ return `<div class="page share-public-page"><div class="share-public-header"><span class="share-eyebrow">AIMO MUSIC</span><h1>一份音乐分享</h1><p>来自 AimoMusic 的音乐卡片</p></div><div class="share-public-card">${cardMarkup(data)}</div><div class="share-public-actions">${data.type==='stats'?'': '<button type="button" class="share-btn share-btn-primary" data-action="share-open-content">打开对应内容</button>'}<button type="button" class="share-btn share-btn-secondary" data-action="share-recreate">制作同款卡片</button></div></div>`;
 }
 export function shareInvalidMarkup(message){
  return `<div class="page share-public-page"><h1>分享链接无法打开</h1><p>${e(message)}</p><button class="share-btn share-btn-primary" data-action="navigate" data-view="home">返回发现</button></div>`;
@@ -84,8 +84,8 @@ export async function cardPng(data){
 export function installShareUi({app,toast,onOpenContent,confirmPublish=async()=>true}){
  let draft=null,overlay=null;
  const rerender=()=>{const p=overlay?.querySelector('#share-preview');if(p)p.innerHTML=cardMarkup(draft);};
- const close=()=>{overlay?.remove();overlay=null;draft=null;};
- const open=input=>{close();draft=normalizeShare({...input,style:input.style||clone(defaults)});overlay=document.createElement('div');overlay.innerHTML=shareEditorMarkup(draft);document.body.append(overlay);overlay.querySelector('.share-icon-btn')?.focus();};
+ const close=()=>{overlay?.remove();overlay=null;draft=null;document.body.classList.remove('share-dialog-open');};
+ const open=input=>{close();draft=normalizeShare({...input,style:input.style||clone(defaults)});overlay=document.createElement('div');overlay.innerHTML=shareEditorMarkup(draft);document.body.append(overlay);document.body.classList.add('share-dialog-open');overlay.querySelector('.share-icon-btn')?.focus();};
  const openUrl=()=>shareUrl(draft,location,window.__AIMO_BASE__||'/music');
  const download=async()=>{const blob=await cardPng(draft);const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='AimoMusic-'+draft.type+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);};
  const copy=async()=>{await navigator.clipboard.writeText(openUrl());toast('分享链接已复制');};
@@ -99,6 +99,7 @@ export function installShareUi({app,toast,onOpenContent,confirmPublish=async()=>
   }
  };
  document.addEventListener('click',e=>{
+  if(overlay&&e.target.classList?.contains('share-modal-backdrop')){close();return;}
   const button=e.target.closest('[data-share-action]');if(!button)return;e.preventDefault();void act(button.dataset.shareAction).catch(err=>{if(err.name!=='AbortError')toast(err.message||'分享失败','error');});
  });
  document.addEventListener('change',e=>{

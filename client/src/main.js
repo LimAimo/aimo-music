@@ -143,7 +143,7 @@ function restoreDirectoryTab(){
 }
 function renderHeader() {
   const slot = document.getElementById('header-slot');
-  const tab = state.view === 'playlist' ? state.backView : state.view;
+  const tab = state.view === 'playlist' ? state.backView : state.view === 'share' ? 'home' : state.view;
   // 固定顶栏只装配一次。销毁并重建它会打断正在进行的滑块动画。
   if (!slot.firstElementChild) {
     slot.innerHTML = header(tab, currentTheme());
@@ -969,7 +969,7 @@ async function openSharedContent(data){
     openPlayer(data.type==='lyrics'?'lyrics':'cover');
     return;
   }
-  navigate('library');
+  toast('这张统计卡片是一个独立快照，可直接查看或保存图片。');
 }
 const shareUi=installShareUi({app,toast,onOpenContent:openSharedContent,
  confirmPublish:async data=>showConfirmDialog('确认公开分享',
@@ -1093,7 +1093,8 @@ window.addEventListener('online',()=>{
 });
 window.addEventListener('offline',()=>toast('网络已断开，仍可浏览缓存内容和本地歌曲'));
 function restoreHistoryLocation(entry){
-  const target=normalizeRoute(entry)||normalizeRoute({view:'home'});
+  const parsed=parseRoute(window.location.href,routeBase);
+  const target=parsed?.view==='share'?normalizeRoute({view:'share'}):normalizeRoute(entry)||normalizeRoute(parsed)||normalizeRoute({view:'home'});
   const existing=routeFromState(state);
   state.navigationMenuOpen=false;
   state.libraryTab=target.libraryTab;
@@ -1101,6 +1102,11 @@ function restoreHistoryLocation(entry){
   state.searchQuery=target.searchQuery;
   state.selectedLocalPlaylist=target.selectedLocalPlaylist;
   state.collectionEdit=false;
+  if(target.view==='share'){
+    state.view='share';state.fullOpen=false;state.shareData=null;state.shareError='';
+    try{state.shareData=shareUi.readLink();}catch(error){state.shareError=error.message;}
+    renderHeader();renderPage();saveRoute(target);return;
+  }
   // Pop from song details to its underlying playlist: close the top layer only.
   if(state.fullOpen&&!target.fullOpen)closePlayer({fromHistory:true});
   if(target.view==='playlist'){
@@ -1221,6 +1227,11 @@ async function init() {
         audio.currentTime=Math.min(Math.max(0,audio.duration-0.5),state.time);
       }
     },{once:true});
+  }
+  if(directRoute?.directSong&&state.current&&!audioTrackId){
+    // Prepare the remote audio without autoplay: deep links must be usable after refresh.
+    const resumeAt=state.time||0;
+    void playIndex(state.queueIndex,{fromNavigation:true,resumeAt,preserveHistory:true}).then(()=>audio.pause()).catch(()=>{});
   }
   if(startupRoute?.fullOpen&&state.current){
     // Deep links should have a safe home entry, so closing the player never leaves the app.

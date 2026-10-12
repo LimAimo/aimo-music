@@ -1,6 +1,6 @@
 // Navigation state is per browser tab and never mixed with account/music preferences.
 export const NAV_KEY='aimo-music-navigation-v1';
-const pages=new Set(['home','search','library','playlist']);
+const pages=new Set(['home','search','library','playlist','share']);
 const tabs=new Set(['favorites','recent','history','playlists','local']);
 const types=new Set(['songs','playlists']);
 const root=new Set(['home','search','library']);

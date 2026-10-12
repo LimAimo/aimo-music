@@ -4,7 +4,7 @@ const limit=(v,n)=>String(v??'').slice(0,n);
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,Number(v)||a));
 export function compactTrack(t){
  return {id:limit(t?.id,160),source:limit(t?.source||'remote',20),
-  providerNamespace:limit(t?.providerNamespace||'netease',60),
+  providerNamespace:limit(t?.providerNamespace||'netease',60),providerId:limit(t?.providerId,160),
   title:limit(t?.title,160),artist:limit(t?.artist,140),
   album:limit(t?.album,140),cover:limit(t?.cover,1500)};
 }
