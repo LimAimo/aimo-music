@@ -19,10 +19,10 @@ test('本地歌单只包含标识不泄露曲目',()=>{
  assert.equal(data.playlist.namespace,'local');
  assert.equal(JSON.stringify(data).includes('私密歌曲'),false);
 });
-test('所有模板和比例编码可往返',()=>{
+test('卡片样式固定为唱片、3:4 与流动渐变',()=>{
  for(const template of ['glass','minimal','poster','vinyl'])
  for(const ratio of ['1:1','4:5','3:4','9:16','16:9']){
-  const data=decodeShare(encodeShare({type:'stats',style:{template,ratio,color:'#abc123'}}));
-  assert.equal(data.style.template,template);assert.equal(data.style.ratio,ratio);
+  const data=decodeShare(encodeShare({type:'stats',style:{template,ratio,background:'solid',color:'#abc123'}}));
+  assert.equal(data.style.template,'vinyl');assert.equal(data.style.ratio,'3:4');assert.equal(data.style.background,'gradient');
  }
 });
