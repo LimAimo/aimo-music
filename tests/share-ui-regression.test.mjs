@@ -18,7 +18,9 @@ test('卡片编辑器及移动端均有主题样式',()=>{
 });
 test('分享链接不依赖数据库，发布前确认',()=>{
  assert.match(main,/confirmPublish:async/);
- assert.match(share,/confirmPublish\(draft\)/);
+ assert.match(share,/data-share-confirm/);
+ assert.match(share,/requestConfirm\(action\)/);
+ assert.match(share,/navigator\.share\(/);
  assert.match(share,/canvas\.toBlob\(resolve,'image\/png'\)/);
 });
 test('Cloudflare 直接访问和刷新不会丢失静态资源',()=>{
