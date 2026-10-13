@@ -65,3 +65,26 @@
 .share-stats-tools label{display:inline-flex;align-items:center;gap:5px;font-size:12px}.share-stats-tools input[type=date]{background:var(--bg-elevated);color:var(--text-primary);border:1px solid var(--border);border-radius:9px;min-height:38px;padding:6px 8px;font:inherit;max-width:148px}.share-stats-tools input[type=date]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 body.share-dialog-open{overflow:hidden}
+
+/* Modal confirmations live above the share editor, never behind it. */
+.share-modal{position:relative}
+.share-inline-confirm[hidden]{display:none!important}
+.share-inline-confirm{position:absolute;z-index:5;inset:auto 16px 84px;display:grid;gap:14px;padding:20px;border-radius:18px;background:var(--bg-elevated);border:1px solid var(--border);box-shadow:0 15px 60px rgb(0 0 0 / .38)}
+.share-inline-confirm p{font-size:14px;line-height:1.7;margin:0}
+.share-inline-confirm>div{display:flex;justify-content:flex-end;gap:10px}
+.share-palette-note{padding:10px 12px;border-radius:10px;background:var(--bg-sunken)}
+.share-card{background:linear-gradient(145deg,var(--share-color),var(--share-color-2) 48%,var(--share-color-3));}
+.share-card--solid{background:linear-gradient(155deg,var(--share-color),var(--share-color-2))}
+.share-card--minimal{background:linear-gradient(155deg,#f7f5f0,color-mix(in srgb,var(--share-color) 25%,#f7f5f0));color:#27272c}
+.share-card--poster{background:linear-gradient(160deg,#17191e,var(--share-color),var(--share-color-3))}
+.share-card--vinyl{background:radial-gradient(circle at 75% 20%,var(--share-color),var(--share-color-2) 36%,#141419 80%)}
+.share-card--cover{background:linear-gradient(135deg,var(--share-color),var(--share-color-2) 55%,var(--share-color-3))}
+@media(max-width:700px){
+ .share-modal{max-height:calc(100dvh - 12px)}
+ .share-preview-wrap{padding:22px 18px}
+ .share-preview{width:min(100%,310px)}
+ .share-modal-actions{position:sticky;bottom:0;z-index:3}
+ .share-inline-confirm{inset:auto 10px 76px;padding:16px}
+ .share-control-row{gap:12px}
+ .share-control-row select{max-width:62%}
+}

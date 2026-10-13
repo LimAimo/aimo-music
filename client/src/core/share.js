@@ -17,6 +17,8 @@ export function normalizeShare(raw){
    template:['minimal','glass','poster','vinyl'].includes(style.template)?style.template:'glass',
    ratio:['1:1','4:5','3:4','9:16','16:9'].includes(style.ratio)?style.ratio:'4:5',
    color:/^#[0-9a-f]{6}$/i.test(style.color||'')?style.color:'#8497b0',
+   color2:/^#[0-9a-f]{6}$/i.test(style.color2||'')?style.color2:'#8497b0',
+   color3:/^#[0-9a-f]{6}$/i.test(style.color3||'')?style.color3:'#17191f',
    background:['cover','gradient','solid'].includes(style.background)?style.background:'gradient',
    fields:{cover:style.fields?.cover!==false,title:style.fields?.title!==false,
     artist:style.fields?.artist!==false,album:style.fields?.album===true,

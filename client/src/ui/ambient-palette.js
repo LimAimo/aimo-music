@@ -54,3 +54,5 @@ export function applyAmbientPalette(cover,element){
   colors.forEach((c,i)=>element.style.setProperty('--ambient-tone-'+i,c));
  });
 }
+
+export const extractAmbientColors=extract;
