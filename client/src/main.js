@@ -63,7 +63,7 @@ const state = {
   ...saved,
   view: 'home', backView: 'home', showEasterEgg: false, navigationMenuOpen:false, playlistTitle:'', shareData:null, shareError:'',
   current: saved.queue[saved.queueIndex] || null,
-  playing: false, buffering: false, time: 0, duration: 0, selectedLyrics:new Set(),
+  playing: false, buffering: false, time: 0, duration: 0,
   fullOpen: false, fullPanel: 'cover', queueOpen: false, settingsOpen: false,
   featured: [], featuredLoading: true, featuredFailed: false,
   searchType: 'songs', searchQuery: '', searchSongs: [], searchPlaylists: [], searchLoading: false, searchError: '',
@@ -579,7 +579,7 @@ async function openPlaylist(id, { record = true, providerId = null, namespace = 
   finally { await transition; if (playlistController===controller && !controller.signal.aborted && state.view==='playlist') {state.playlistLoading=false;renderPage();} }
 }
 async function loadLyricsFor(song) {
-  state.lyrics=[];state.selectedLyrics.clear(); state.activeLyric=-1; state.lyricsError='';
+  state.lyrics=[];state.activeLyric=-1; state.lyricsError='';
   if (song.source === 'local') { state.lyricsLoading=false; renderOverlay(); return; }
   state.lyricsLoading=true; renderOverlay();
   const token=playToken;
@@ -822,20 +822,6 @@ function handleAction(button) {
     case 'repeat':state.repeat=({off:'all',all:'one',one:'off'})[state.repeat];persist();renderPlayer();renderOverlay();toast(({off:'循环播放已关闭',all:'列表循环',one:'单曲循环'})[state.repeat]);break;
     case 'share-current':if(state.current)shareUi.open(shareForTrack(state.current));break;
     case 'share-playlist':if(state.playlist)shareUi.open(shareForPlaylist(state.playlist));break;
-    case 'lyric-select':{
-      const i=Number(button.dataset.index);
-      if(state.selectedLyrics.has(i))state.selectedLyrics.delete(i);
-      else if(state.selectedLyrics.size<8)state.selectedLyrics.add(i);
-      else {toast('一次最多分享 8 行歌词');break;}
-      button.classList.toggle('is-share-selected',state.selectedLyrics.has(i));
-      button.setAttribute('aria-pressed',String(state.selectedLyrics.has(i)));
-      break;
-    }
-    case 'share-lyrics':if(state.current){
-      const chosen=state.selectedLyrics.size?[...state.selectedLyrics].sort((a,b)=>a-b):state.lyrics.findIndex(x=>x.time<=state.time&&state.time-x.time<8);
-      const selected=(Array.isArray(chosen)?chosen:[Math.max(0,chosen)]).map(i=>state.lyrics[i]?.text).filter(Boolean).slice(0,8);
-      shareUi.open({...shareForTrack(state.current),type:'lyrics',lines:selected});
-    }break;
     case 'share-stats':{
       const count=state.historyEntries.length;
       const period=button.dataset.period||'month';
@@ -952,7 +938,7 @@ function downloadProfiles() {
   setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 
-function shareForTrack(track){return {type:'song',title:track.title,subtitle:track.artist,cover:track.cover,track:compactTrack(track)};}
+function shareForTrack(track){return {type:'song',title:track.title,subtitle:track.artist,description:track.description||'',cover:track.cover,track:compactTrack(track)};}
 function shareForPlaylist(list){return {type:'playlist',title:list.title,subtitle:list.creator||list.description||'',cover:list.cover,playlist:{id:state.playlistId,namespace:state.playlistNamespace||'netease',providerId:state.playlistProviderId,title:list.title,cover:list.cover,count:list.count||list.tracks?.length||0}};}
 async function openSharedContent(data){
   if(data.type==='playlist'){

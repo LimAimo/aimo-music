@@ -6,23 +6,18 @@ export function compactTrack(t){
  return {id:limit(t?.id,160),source:limit(t?.source||'remote',20),
   providerNamespace:limit(t?.providerNamespace||'netease',60),providerId:limit(t?.providerId,160),
   title:limit(t?.title,160),artist:limit(t?.artist,140),
-  album:limit(t?.album,140),cover:limit(t?.cover,1500)};
+  album:limit(t?.album,140),description:limit(t?.description,360),cover:limit(t?.cover,1500)};
 }
 export function normalizeShare(raw){
  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('分享数据格式无效');
  if(!['song','playlist','lyrics','stats'].includes(raw.type))throw Error('不支持的分享类型');
  const style=raw.style||{};
  const result={v:SHARE_VERSION,type:raw.type,title:limit(raw.title,160),subtitle:limit(raw.subtitle,160),
-  cover:limit(raw.cover,1500),style:{
-   template:'vinyl',
-   ratio:'3:4',
+  description:limit(raw.description||raw.track?.description,360),cover:limit(raw.cover,1500),style:{
+   template:'poster',ratio:'3:4',background:'gradient',
    color:/^#[0-9a-f]{6}$/i.test(style.color||'')?style.color:'#8497b0',
    color2:/^#[0-9a-f]{6}$/i.test(style.color2||'')?style.color2:'#8497b0',
-   color3:/^#[0-9a-f]{6}$/i.test(style.color3||'')?style.color3:'#17191f',
-   background:'gradient',
-   fields:{cover:style.fields?.cover!==false,title:style.fields?.title!==false,
-    artist:style.fields?.artist!==false,album:style.fields?.album===true,
-    logo:style.fields?.logo!==false,qr:style.fields?.qr!==false,details:style.fields?.details!==false}
+   color3:/^#[0-9a-f]{6}$/i.test(style.color3||'')?style.color3:'#17191f'
   }};
  if(raw.type==='song'||raw.type==='lyrics'){
   result.track=compactTrack(raw.track);
@@ -37,6 +32,19 @@ export function normalizeShare(raw){
  if(raw.type==='lyrics')result.lines=(Array.isArray(raw.lines)?raw.lines:[]).slice(0,8).map(x=>limit(x,240)).filter(Boolean);
  if(raw.type==='stats')result.stats=(Array.isArray(raw.stats)?raw.stats:[]).slice(0,12).map(x=>({label:limit(x.label,40),value:limit(x.value,80)}));
  return result;
+}
+// The poster is the only layout. Its density adapts to the available music metadata.
+// All lengths are Unicode code-point counts so that CJK names aren't treated as bytes.
+export function posterLayout(data){
+ const title=Array.from(String(data.title||data.track?.title||data.playlist?.title||'')).length;
+ const artist=Array.from(String(data.subtitle||data.track?.artist||'')).length;
+ const album=Array.from(String(data.track?.album||'')).length;
+ const description=Array.from(String(data.description||data.track?.description||'')).length;
+ const extra=data.type==='lyrics'?(data.lines||[]).length:data.type==='stats'?(data.stats||[]).length:0;
+ const score=(title>28?3:title>14?1:0)+(artist>32?2:0)+(album>30?1:0)+
+  (description>80?4:description>35?2:description?1:0)+(extra>5?5:extra>2?3:extra?2:0);
+ const density=score>=4?'dense':score>=2?'balanced':'spacious';
+ return {density,coverFraction:{spacious:.66,balanced:.57,dense:.46}[density]};
 }
 function toBase64(bytes){let out='';for(const byte of bytes)out+=String.fromCharCode(byte);return btoa(out).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function fromBase64(encoded){const s=encoded.replace(/-/g,'+').replace(/_/g,'/');const binary=atob(s);return Uint8Array.from(binary,c=>c.charCodeAt(0));}

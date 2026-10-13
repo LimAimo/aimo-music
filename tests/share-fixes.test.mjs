@@ -29,3 +29,24 @@ test('分享编辑器支持移动端安全区域和可见确认层',()=>{
  assert.match(css,/\.share-inline-confirm\[hidden\]/);
  assert.match(css,/safe-area-inset-bottom/);
 });
+
+test('歌曲描述有值才展示，旧界面元描述已移除',async()=>{
+ const {cardMarkup,shareEditorMarkup,shareViewerMarkup}=await import('../client/src/ui/share.js');
+ const song={type:'song',title:'歌曲',subtitle:'歌手',track:{id:'1',album:'专辑'}};
+ const bare=cardMarkup(song),filled=cardMarkup({...song,description:'一段描述'});
+ assert.match(bare,/share-card-album/);
+ assert.doesNotMatch(bare,/share-card-description/);
+ assert.match(filled,/share-card-description/);
+ assert.match(filled,/一段描述/);
+ assert.match(filled,/AimoMusic/);
+ assert.match(filled,/打开 AimoMusic/);
+ for(const markup of [shareEditorMarkup(song),shareViewerMarkup(song)]){
+  assert.doesNotMatch(markup,/分享信息保存在链接中|不上传数据库|色彩自动取自|切换模板|AIMO MUSIC \/ SHARE/);
+ }
+});
+test('分享卡片转义歌曲描述中的第三方 HTML',async()=>{
+ const {cardMarkup}=await import('../client/src/ui/share.js');
+ const markup=cardMarkup({type:'song',track:{id:'1'},description:'<script>alert(1)</script>'});
+ assert.doesNotMatch(markup,/<script>/);
+ assert.match(markup,/&lt;script&gt;/);
+});

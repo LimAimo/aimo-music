@@ -7,14 +7,23 @@ test('已移除面包屑目录入口，保留真实 URL 路由',()=>{
  assert.match(main,/routeUrl\(/);
  assert.match(main,/parseRoute\(/);
 });
-test('歌曲、歌词、歌单和历史统计均有分享入口',()=>{
- for(const action of ['share-current','share-playlist','share-lyrics','share-stats'])assert.match(action==='share-current'?main:render,new RegExp(action==='share-current'?"case 'share-current'":"data-action=\\\""+action+"\\\""));
+test('保留歌曲菜单、歌单与统计分享，完整播放器不再分享歌词',()=>{
+ assert.match(main,/case 'share-current'/);
+ assert.match(render,/data-action="share-playlist"/);
+ assert.match(render,/data-action="share-stats"/);
  assert.match(file('client/src/ui/collections-view.js'),/menuButton\('share'/);
+ assert.doesNotMatch(render,/data-action="share-lyrics"|data-action="lyric-select"|分享所选歌词/);
+ assert.doesNotMatch(main,/case 'share-lyrics'|case 'lyric-select'|selectedLyrics/);
+ assert.match(render,/data-action="seek-lyric"/);
 });
-test('卡片编辑器及移动端均有主题样式',()=>{
- for(const selector of ['.share-modal-backdrop','.share-modal-body','.share-control-row','.share-fields','.share-card','.share-modal-actions','.share-btn','.share-public-page','.share-lyric-pick'])assert.ok(css.includes(selector),selector);
+test('只保留固定杂志海报的样式和操作',()=>{
+ for(const selector of ['.share-modal-backdrop','.share-modal-body','.share-card','.share-card-art','.share-card--dense','.share-modal-actions','.share-btn','.share-public-page','.share-inline-confirm'])assert.ok(css.includes(selector),selector);
+ assert.doesNotMatch(css,/share-card--vinyl|share-card--minimal|share-control-row|share-fields|share-lyric-pick/);
  assert.match(css,/@media\(max-width:700px\)/);
  assert.match(css,/focus-visible/);
+ assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);
+ assert.match(share,/share-card--poster/);
+ assert.doesNotMatch(share,/AIMO MUSIC \/ SHARE|AIMO music \/|唱片模板|切换模板/);
 });
 test('分享链接不依赖数据库，发布前确认',()=>{
  assert.match(main,/confirmPublish:async/);
