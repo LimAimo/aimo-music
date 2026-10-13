@@ -1,1 +1,1 @@
-export const versionInfo = Object.freeze({version:'0.4.1',build:'magazine-poster-share'});
+export const versionInfo = Object.freeze({version:'0.4.2',build:'magazine-motion-layout'});

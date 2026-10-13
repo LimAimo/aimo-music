@@ -1,48 +1,107 @@
-// Interruptible cover FLIP transition between docked and full player.
+// Interruptible shared-element motion between share / mini / full player.
 let active=null;
 const reduce=()=>globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const rectOf=element=>{const r=element?.getBoundingClientRect?.();return r?{left:r.left,top:r.top,width:r.width,height:r.height}:null;};
+const visible=element=>{const r=rectOf(element);return !!(r&&r.width&&r.height);};
+function captureTitleStyle(element){
+ const css=globalThis.getComputedStyle?.(element);
+ if(!css)return null;
+ return {
+  font:css.font,fontSize:css.fontSize,fontFamily:css.fontFamily,fontWeight:css.fontWeight,
+  color:css.color,lineHeight:css.lineHeight,letterSpacing:css.letterSpacing,
+  textAlign:css.textAlign,whiteSpace:css.whiteSpace,display:css.display,
+  textTransform:css.textTransform,webkitLineClamp:css.webkitLineClamp
+ };
+}
+function applyTitleStyle(ghost,style){
+ if(!style)return;
+ Object.assign(ghost.style,style);
+ if(style.webkitLineClamp&&style.webkitLineClamp!=='none'){
+  ghost.style.display='-webkit-box';ghost.style.webkitBoxOrient='vertical';
+ }
+}
+
+function createGhost(source,type,snapshot){
+ const r=snapshot?.rect||rectOf(source);
+ if(!r||!r.width||!r.height)return null;
+ const base=snapshot?.node||source?.cloneNode?.(true);
+ const ghost=base||source?.cloneNode?.(true);
+ if(!ghost)return null;
+ ghost.classList.add(type==='title'?'player-shared-title-ghost':'player-shared-ghost');
+ Object.assign(ghost.style,{
+  position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',
+  maxWidth:'none',maxHeight:'none',aspectRatio:'auto',transform:'none',margin:'0',
+  visibility:'visible',pointerEvents:'none',zIndex:type==='title'?'501':'500',overflow:'hidden'
+ });
+ if(type==='cover'){
+  const corner=globalThis.getComputedStyle?.(source||ghost)?.borderTopLeftRadius||'12px';
+  ghost.style.borderRadius=corner;
+ }else{
+  ghost.style.borderRadius='0';
+  applyTitleStyle(ghost,snapshot?.titleStyle||captureTitleStyle(source));
+ }
+ document.body.append(ghost);
+ return {ghost,rect:r};
+}
+function pushHidden(tx,element){if(element&&element.isConnected)tx.hidden.push({element,previous:element.style.visibility});}
 export function cancelPlayerTransition(){
  if(!active)return;
  const tx=active;active=null;
- tx.anim?.cancel();tx.ghost?.remove();
- tx.hidden.forEach(({element,previous})=>{if(element.isConnected)element.style.visibility=previous;});
+ tx.animations?.forEach(anim=>anim?.cancel?.());
+ tx.ghosts?.forEach(ghost=>ghost?.remove?.());
+ tx.hidden?.forEach(({element,previous})=>{if(element?.isConnected)element.style.visibility=previous;});
 }
-export function animateCoverTransition(from,to){
+export function snapshotPlayerSharedElements({cover,title}={}){
+ const out=[];
+ if(visible(cover))out.push({type:'cover',node:cover.cloneNode(true),rect:rectOf(cover)});
+ if(visible(title))out.push({type:'title',node:title.cloneNode(true),rect:rectOf(title),titleStyle:captureTitleStyle(title)});
+ return out;
+}
+export function animatePlayerTransition({fromCover,toCover,fromTitle,toTitle,fromSnapshots=null}={}){
  cancelPlayerTransition();
- if(reduce()||!from||!to||typeof from.animate!=='function')return;
- const a=from.getBoundingClientRect(),b=to.getBoundingClientRect();
- if(!a.width||!b.width||!a.height||!b.height)return;
- // A CSS scale of the tiny cover would also scale its corners. Interpolate
- // position and physical dimensions instead, keeping the radius in pixels.
- const ghost=from.cloneNode(true);
- const corner=globalThis.getComputedStyle?.(to)?.borderTopLeftRadius||'12px';
- const hidden=[from,to].map(element=>({element,previous:element.style.visibility}));
- ghost.classList.add('player-shared-ghost');
- Object.assign(ghost.style,{
-  position:'fixed',left:a.left+'px',top:a.top+'px',width:a.width+'px',height:a.height+'px',
-  maxWidth:'none',maxHeight:'none',aspectRatio:'auto',
-  transform:'none',margin:'0',borderRadius:corner,visibility:'visible',
-  pointerEvents:'none',zIndex:'500'
- });
- document.body.append(ghost);
- hidden.forEach(({element})=>{element.style.visibility='hidden';});
- const frames=[
-  {left:a.left+'px',top:a.top+'px',width:a.width+'px',height:a.height+'px',borderRadius:corner},
-  {left:b.left+'px',top:b.top+'px',width:b.width+'px',height:b.height+'px',borderRadius:corner}
- ];
- let anim;
- try{anim=ghost.animate(frames,{duration:390,easing:'cubic-bezier(.22,1,.36,1)',fill:'both'});}
- catch{
-  ghost.remove();hidden.forEach(({element,previous})=>{element.style.visibility=previous;});
-  return;
+ if(reduce())return;
+ const tx={animations:[],ghosts:[],hidden:[]};active=tx;
+ const sources=fromSnapshots?.length?fromSnapshots:[
+  fromCover&&visible(fromCover)?{type:'cover',element:fromCover}:null,
+  fromTitle&&visible(fromTitle)?{type:'title',element:fromTitle}:null
+ ].filter(Boolean);
+ if(!sources.length){active=null;return;}
+ for(const item of sources){
+  const built=createGhost(item.element,item.type,item.node?item:null);
+  if(!built)continue;
+  const {ghost}=built;
+  tx.ghosts.push(ghost);
+  if(item.element){pushHidden(tx,item.element);item.element.style.visibility='hidden';}
+  const dest=item.type==='title'?toTitle:toCover;
+  if(dest&&visible(dest)){pushHidden(tx,dest);dest.style.visibility='hidden';}
+  const a=item.rect||built.rect||rectOf(item.element)||rectOf(ghost), b=dest&&visible(dest)?rectOf(dest):null;
+  if(!b)continue;
+  let anim;
+  try{
+   if(item.type==='cover'){
+    const radius=ghost.style.borderRadius||'12px';
+    anim=ghost.animate([
+    {left:a.left+'px',top:a.top+'px',width:a.width+'px',height:a.height+'px',opacity:1,borderRadius:radius},
+    {left:b.left+'px',top:b.top+'px',width:b.width+'px',height:b.height+'px',opacity:1,borderRadius:radius}
+   ],{duration:390,easing:'cubic-bezier(.22,1,.36,1)',fill:'both'});
+   } else {
+    const startSize=ghost.style.fontSize||'18px';
+    const endSize=globalThis.getComputedStyle?.(dest)?.fontSize||startSize;
+    anim=ghost.animate([
+     {left:a.left+'px',top:a.top+'px',width:a.width+'px',height:a.height+'px',fontSize:startSize,opacity:1},
+     {left:b.left+'px',top:b.top+'px',width:b.width+'px',height:b.height+'px',fontSize:endSize,opacity:1}
+    ],{duration:390,easing:'cubic-bezier(.22,1,.36,1)',fill:'both'});
+   }
+  }catch{continue;}
+  tx.animations.push(anim);
  }
- const tx={anim,ghost,hidden};active=tx;
- const cleanup=()=>{
-  if(active!==tx)return;
-  active=null;ghost.remove();
-  hidden.forEach(({element,previous})=>{if(element.isConnected)element.style.visibility=previous;});
- };
- anim.finished.then(cleanup,cleanup);
+ if(!tx.animations.length){cancelPlayerTransition();return;}
+ const cleanup=()=>{if(active!==tx)return;cancelPlayerTransition();};
+ Promise.allSettled(tx.animations.map(anim=>anim.finished)).then(cleanup,cleanup);
+}
+
+export function animateCoverTransition(from,to){
+ animatePlayerTransition({fromCover:from,toCover:to});
 }
 export function enablePlayerSwipe(full,onClose){
  if(!full||full.dataset.swipeBound)return;

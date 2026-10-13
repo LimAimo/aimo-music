@@ -10,7 +10,7 @@ import {appBase,routeUrl,parseRoute} from './core/url-routes.js';
 import {normalizeShare,compactTrack} from './core/share.js';
 import {normalizeRoute,readRoute,saveRoute,routeFromState,historyEntry,sameLocation} from './core/navigation.js';
 import { sharedPlaylistTransition, isPlaylistTransitionRunning, interruptPlaylistTransition } from './ui/playlist-transition.js';
-import { animateCoverTransition,cancelPlayerTransition,enablePlayerSwipe } from './ui/player-motion.js';
+import { animatePlayerTransition,cancelPlayerTransition,enablePlayerSwipe,snapshotPlayerSharedElements } from './ui/player-motion.js';
 import './ui/player-motion.css';
 import { recordPlayHistory, readPlayHistory, clearPlayHistory, allPlayHistory, replaceHistory } from './core/history.js';
 import { mountCollections } from './ui/collections-controller.js';
@@ -322,12 +322,15 @@ function dismissOverlay(node, delay = 350) {
   setTimeout(() => { node.remove(); refreshOverlayLock(); synchronizeModalFocus(); }, timeout);
 }
 let sharedPlayerOpening=false;
-function openPlayer(panel='cover',{record=true}={}){
+let sharedPlayerSnapshots=null;
+function openPlayer(panel='cover',{record=true,sharedSnapshots=null}={}){
   if(!state.current)return;
   const wasOpen=state.fullOpen;
   if(!wasOpen&&isPlaylistTransitionRunning())interruptPlaylistTransition();
   const from=wasOpen?null:document.querySelector('#player-slot .mini-now .album-art');
+  const titleFrom=wasOpen?null:document.querySelector('#player-slot .mini-now .mini-track-title');
   sharedPlayerOpening=!wasOpen;
+  if(!wasOpen)sharedPlayerSnapshots=sharedSnapshots;
   state.fullOpen=true;state.fullPanel=panel;
   snapshotLocation({push:record&&!wasOpen,overlay:'player'});
   try{renderOverlay();}finally{sharedPlayerOpening=false;}
@@ -335,7 +338,8 @@ function openPlayer(panel='cover',{record=true}={}){
     const full=document.querySelector('#full-player:not(.is-leaving)');
     if(full){
       // 共享动画仅执行一遍。标记已入场，结束时不可重新触发原来的 full-enter 平移动画。
-      animateCoverTransition(from,full.querySelector('.album-art--full'));
+      animatePlayerTransition({fromCover:from,toCover:full.querySelector('.album-art--full'),fromTitle:titleFrom,toTitle:full.querySelector('.full-track-title'),fromSnapshots:sharedPlayerSnapshots});
+      sharedPlayerSnapshots=null;
       window.setTimeout(()=>{
         if(!full.isConnected||!full.classList.contains('is-shared-entering'))return;
         full.classList.add('has-entered');
@@ -349,10 +353,11 @@ function closePlayer({fromHistory=false}={}){
   if(!fromHistory&&normalizeRoute(window.history.state)?.fullOpen){window.history.back();return;}
   const full=document.querySelector('#full-player:not(.is-leaving)');
   const from=full?.querySelector('.album-art--full');
+  const titleFrom=full?.querySelector('.full-track-title');
   full?.classList.add('is-shared-leaving');
   state.fullOpen=false;renderOverlay();
   if(!fromHistory)snapshotLocation({overlay:null});
-  animateCoverTransition(from,document.querySelector('#player-slot .mini-now .album-art'));
+  animatePlayerTransition({fromCover:from,toCover:document.querySelector('#player-slot .mini-now .album-art'),fromTitle:titleFrom,toTitle:document.querySelector('#player-slot .mini-now .mini-track-title')});
 }
 function renderOverlay() {
   const slot = document.getElementById('overlay-slot');
@@ -941,6 +946,9 @@ function downloadProfiles() {
 function shareForTrack(track){return {type:'song',title:track.title,subtitle:track.artist,description:track.description||'',cover:track.cover,track:compactTrack(track)};}
 function shareForPlaylist(list){return {type:'playlist',title:list.title,subtitle:list.creator||list.description||'',cover:list.cover,playlist:{id:state.playlistId,namespace:state.playlistNamespace||'netease',providerId:state.playlistProviderId,title:list.title,cover:list.cover,count:list.count||list.tracks?.length||0}};}
 async function openSharedContent(data){
+  const sharedSnapshots=state.view==='share'
+    ? snapshotPlayerSharedElements({cover:document.querySelector('.share-public-card [data-share-cover]'),title:document.querySelector('.share-public-card [data-share-title]')})
+    : null;
   if(data.type==='playlist'){
     if(data.playlist.namespace==='local'){
       const p=state.localPlaylists.find(x=>x.id===data.playlist.id);
@@ -953,12 +961,12 @@ async function openSharedContent(data){
     if(data.track.source==='local'){
       const local=[...state.queue,...state.favorites,...state.recent,...state.localFiles].find(t=>String(t.id)===String(data.track.id));
       if(!local){toast('该歌曲是本地文件，只能在保存了原音频的设备上播放','error');return;}
-      navigate('home');playCollection([local],0);openPlayer(data.type==='lyrics'?'lyrics':'cover');return;
+      navigate('home');playCollection([local],0);openPlayer(data.type==='lyrics'?'lyrics':'cover',{sharedSnapshots});return;
     }
     navigate('home');
     // Opened from a real user click: initialize the stream and lyrics, not just a static player shell.
     playCollection([data.track],0);
-    openPlayer(data.type==='lyrics'?'lyrics':'cover');
+    openPlayer(data.type==='lyrics'?'lyrics':'cover',{sharedSnapshots});
     return;
   }
   toast('这张统计卡片是一个独立快照，可直接查看或保存图片。');

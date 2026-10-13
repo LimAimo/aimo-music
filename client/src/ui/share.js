@@ -19,13 +19,18 @@ export function cardMarkup(input){
  const target=data.type==='song'||data.type==='lyrics'?'歌曲':data.type==='playlist'?'歌单':'统计';
  return `<article class="share-card share-card--poster share-card--${density}" data-kind="${data.type}" style="--share-color:${s.color};--share-color-2:${s.color2};--share-color-3:${s.color3};--poster-art:${Math.round(coverFraction*100)}%" aria-label="${target}分享卡片">
   <div class="share-card-inner">
-   <div class="share-card-art">${coverHtml}</div>
-   <div class="share-card-text">
-    <h2>${e(posterTitle(data))}</h2>
-    ${posterArtist(data)?`<p class="share-card-artist">${e(posterArtist(data))}</p>`:''}
-    ${description?`<p class="share-card-description">${e(description)}</p>`:''}
-    ${album?`<p class="share-card-album"><span>专辑</span>${e(album)}</p>`:''}
-    ${extras}
+   <div class="share-card-atmo" aria-hidden="true"></div>
+   <div class="share-card-kicker"><span>MAGAZINE POSTER</span><span>流动封面</span></div>
+   <div class="share-card-hero">
+    <div class="share-card-art-wrap"><div class="share-card-art" data-share-cover>${coverHtml}</div></div>
+    <div class="share-card-copy">
+     <p class="share-card-tag">一份音乐分享</p>
+     <h2 class="share-card-title" data-share-title>${e(posterTitle(data))}</h2>
+     ${posterArtist(data)?`<p class="share-card-artist">${e(posterArtist(data))}</p>`:''}
+     ${description?`<p class="share-card-description">${e(description)}</p>`:''}
+     ${album?`<p class="share-card-album"><span>专辑</span>${e(album)}</p>`:''}
+     ${extras}
+    </div>
    </div>
    <div class="share-card-foot"><span class="share-card-brand"><img src="/favicon.svg" alt="" width="20" height="20"><strong>AimoMusic</strong></span><span class="share-card-url">${e(promptFor(data))}</span></div>
   </div>
@@ -74,66 +79,66 @@ function drawLogo(ctx,x,y){
 }
 export async function cardPng(input){
  const d=normalizeShare(input),s=d.style,{density,coverFraction}=posterLayout(d);
- const width=1080,height=1440,margin=78,footerY=1310;
+ const width=1080,height=1440,margin=74,footerY=1304;
  const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
  const ctx=canvas.getContext('2d');if(!ctx)throw Error('无法创建画布');
  ctx.fillStyle='#17191f';ctx.fillRect(0,0,width,height);
  const gradient=ctx.createLinearGradient(0,0,width,height);
- gradient.addColorStop(0,'#17191f');gradient.addColorStop(.29,s.color);gradient.addColorStop(.62,s.color2);gradient.addColorStop(1,s.color3);
+ gradient.addColorStop(0,'#14161c');gradient.addColorStop(.22,s.color3);gradient.addColorStop(.56,s.color);gradient.addColorStop(1,s.color2);
  ctx.fillStyle=gradient;ctx.fillRect(0,0,width,height);
- const shade=ctx.createLinearGradient(0,0,0,height);
- shade.addColorStop(0,'rgba(0,0,0,.07)');shade.addColorStop(1,'rgba(0,0,0,.48)');
- ctx.fillStyle=shade;ctx.fillRect(0,0,width,height);
- const fg='#fff',sub='#edeef3',contentWidth=width-2*margin;
+ const glow=ctx.createRadialGradient(width*.25,height*.18,40,width*.25,height*.18,420);
+ glow.addColorStop(0,'rgba(255,255,255,.20)');glow.addColorStop(1,'rgba(255,255,255,0)');
+ ctx.fillStyle=glow;ctx.fillRect(0,0,width,height);
+ const glow2=ctx.createRadialGradient(width*.78,height*.28,50,width*.78,height*.28,500);
+ glow2.addColorStop(0,'rgba(255,255,255,.13)');glow2.addColorStop(1,'rgba(255,255,255,0)');
+ ctx.fillStyle=glow2;ctx.fillRect(0,0,width,height);
+ // Match the in-page poster's translucent copy area instead of leaving a blank block.
+ const panelTop=Math.max(artY+art+42,height*.48),panelBottom=footerY-26;
+ ctx.fillStyle='rgba(255,255,255,.10)';ctx.beginPath();ctx.roundRect(margin,panelTop,width-margin*2,panelBottom-panelTop,36);ctx.fill();
+ ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=1;ctx.stroke();
+ const fg='#fff',sub='rgba(255,255,255,.92)',muted='rgba(255,255,255,.78)',contentWidth=width-2*margin;
  const title=posterTitle(d),artist=posterArtist(d),description=posterDescription(d),album=posterAlbum(d);
- let art=Math.round(contentWidth*(d.type==='stats'?Math.min(coverFraction,.40):coverFraction));
+ let art=Math.round(Math.min(contentWidth*coverFraction, 700));
+ if(density==='dense')art=Math.min(art,465); else if(density==='balanced')art=Math.min(art,600);
  const stats=d.type==='stats'?(d.stats||[]):[],lyrics=d.type==='lyrics'?(d.lines||[]):[];
- const sizeFactor=density==='dense'?.81:density==='balanced'?.9:1;
- const titleFont=Math.round(63*sizeFactor),textFont=Math.round(40*sizeFactor);
- function blockLines(){
-  const parts=[];
-  const add=(value,size,max,step,gap)=>{if(!value)return;ctx.font=`${size>=titleFont?'700':'400'} ${size}px system-ui`;const lines=fitLines(ctx,value,contentWidth,max);parts.push({lines,size,step,gap});};
-  add(title,titleFont,3,Math.round(titleFont*1.2),19);
-  add(artist,textFont,2,Math.round(textFont*1.35),13);
-  add(description,Math.round(textFont*.90),3,Math.round(textFont*1.3),13);
-  add(album?'专辑 · '+album:'',Math.round(textFont*.88),2,Math.round(textFont*1.3),13);
-  add(lyrics.join(' / '),Math.round(textFont*.86),4,Math.round(textFont*1.3),10);
-  return parts;
- }
- const parts=blockLines();
- const textHeight=parts.reduce((h,p)=>h+p.lines.length*p.step+p.gap,0);
- const statsRows=Math.ceil(stats.length/2),statsHeight=statsRows?statsRows*76+20:0;
- const available=footerY-80-52-textHeight-statsHeight;
- art=Math.max(0,Math.min(art,available));
+ const artX=margin,artY=112;
+ const img=art>0?await coverImage(coverUrl(d)):null;
  if(art>0){
-  const x=(width-art)/2,y=80,img=await coverImage(coverUrl(d));
-  ctx.save();ctx.beginPath();ctx.roundRect(x,y,art,art,24);ctx.clip();
-  if(img){const crop=Math.min(img.width,img.height),sx=(img.width-crop)/2,sy=(img.height-crop)/2;ctx.drawImage(img,sx,sy,crop,crop,x,y,art,art);img.close?.();}
-  else{ctx.fillStyle=s.color2;ctx.fillRect(x,y,art,art);ctx.fillStyle='#fff';ctx.font=`700 ${Math.round(art*.25)}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('♪',width/2,y+art/2);ctx.textBaseline='alphabetic';ctx.textAlign='left';}
+  ctx.save();ctx.shadowColor='rgba(0,0,0,.30)';ctx.shadowBlur=48;ctx.shadowOffsetY=16;ctx.beginPath();ctx.roundRect(artX,artY,art,art,34);ctx.clip();
+  if(img){const crop=Math.min(img.width,img.height),sx=(img.width-crop)/2,sy=(img.height-crop)/2;ctx.drawImage(img,sx,sy,crop,crop,artX,artY,art,art);img.close?.();}
+  else{ctx.fillStyle=s.color2;ctx.fillRect(artX,artY,art,art);ctx.fillStyle='#fff';ctx.font=`700 ${Math.round(art*.25)}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('♪',artX+art/2,artY+art/2);ctx.textBaseline='alphabetic';ctx.textAlign='left';}
   ctx.restore();
  }
- let y=80+art+52;
- ctx.textBaseline='alphabetic';
- for(let i=0;i<parts.length;i++){
-  const p=parts[i];ctx.fillStyle=i===0?fg:sub;ctx.font=`${i===0?'700':'400'} ${p.size}px system-ui`;
-  for(const line of p.lines){if(y+p.step>footerY-24)break;y+=p.step;ctx.fillText(line,margin,y);}
-  y+=p.gap;
- }
- if(stats.length&&y<footerY-30){
-  const rows=stats.slice(0,12),colWidth=(contentWidth-30)/2;
-  for(let i=0;i<rows.length;i++){
-   const x=margin+(i%2)*(colWidth+30),rowY=y+Math.floor(i/2)*76;
-   if(rowY+70>=footerY)break;
-   ctx.fillStyle=fg;ctx.font='700 36px system-ui';ctx.fillText(fitLines(ctx,rows[i].value,colWidth,1)[0]||'',x,rowY+35);
-   ctx.fillStyle=sub;ctx.font='26px system-ui';ctx.fillText(fitLines(ctx,rows[i].label,colWidth,1)[0]||'',x,rowY+69);
+ ctx.fillStyle='rgba(255,255,255,.86)';ctx.font='600 24px system-ui';ctx.fillText('MAGAZINE POSTER',margin,70);
+ ctx.textAlign='right';ctx.fillText('流动封面',width-margin,70);ctx.textAlign='left';
+ const textX=margin+30,textWidth=contentWidth-60,copyTop=panelTop+43;
+ let y=copyTop;
+ ctx.fillStyle='rgba(255,255,255,.72)';ctx.font='600 25px system-ui';ctx.fillText('一份音乐分享',textX+6,y);
+ y+=56;
+ const titleSize=density==='dense'?62:density==='balanced'?68:76;
+ ctx.fillStyle=fg;ctx.font=`700 ${titleSize}px system-ui`;
+ for(const line of fitLines(ctx,title,textWidth-20,3)){y+=Math.round(titleSize*1.14);ctx.fillText(line,textX+6,y);}
+ if(artist){y+=24;ctx.fillStyle=sub;ctx.font='600 38px system-ui';for(const line of fitLines(ctx,artist,textWidth-20,2)){y+=50;ctx.fillText(line,textX+6,y);}}
+ if(description){y+=16;ctx.fillStyle=muted;ctx.font='31px system-ui';for(const line of fitLines(ctx,description,textWidth-20,3)){if(y>footerY-220)break;y+=41;ctx.fillText(line,textX+6,y);}}
+ if(album&&y<footerY-180){y+=20;ctx.fillStyle=sub;ctx.font='600 28px system-ui';const label='专辑 ';ctx.fillText(label,textX+6,y+34);ctx.fillStyle=muted;ctx.font='27px system-ui';for(const line of fitLines(ctx,album,textWidth-120,2)){y+=34;ctx.fillText(line,textX+102,y);break;}}
+ if(lyrics.length&&y<footerY-160){y+=26;ctx.fillStyle='rgba(255,255,255,.74)';ctx.font='26px system-ui';for(const line of lyrics.slice(0,4)){y+=36;ctx.fillText(fitLines(ctx,line,textWidth-20,1)[0]||'',textX+6,y);}}
+ if(stats.length&&y<footerY-110){
+  y+=28;const cardW=(contentWidth-22)/2;
+  for(let i=0;i<Math.min(stats.length,6);i++){
+   const x=textX+(i%2)*(cardW+22), rowY=y+Math.floor(i/2)*96;
+   if(rowY+84>footerY)break;
+   ctx.fillStyle='rgba(255,255,255,.10)';ctx.beginPath();ctx.roundRect(x,rowY,cardW,78,24);ctx.fill();
+   ctx.fillStyle=fg;ctx.font='700 34px system-ui';ctx.fillText(fitLines(ctx,stats[i].value,cardW-34,1)[0]||'',x+18,rowY+34);
+   ctx.fillStyle=muted;ctx.font='24px system-ui';ctx.fillText(fitLines(ctx,stats[i].label,cardW-34,1)[0]||'',x+18,rowY+62);
   }
  }
- ctx.strokeStyle='rgba(255,255,255,.4)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(margin,footerY);ctx.lineTo(width-margin,footerY);ctx.stroke();
- drawLogo(ctx,margin,footerY+22);
- ctx.fillStyle=fg;ctx.font='700 34px system-ui';ctx.fillText('AimoMusic',margin+63,footerY+58);
- ctx.fillStyle=sub;ctx.font='26px system-ui';ctx.textAlign='right';ctx.fillText(promptFor(d),width-margin,footerY+56);ctx.textAlign='left';
+ ctx.strokeStyle='rgba(255,255,255,.33)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(margin,footerY);ctx.lineTo(width-margin,footerY);ctx.stroke();
+ drawLogo(ctx,margin,footerY+26);
+ ctx.fillStyle=fg;ctx.font='700 34px system-ui';ctx.fillText('AimoMusic',margin+63,footerY+60);
+ ctx.fillStyle=sub;ctx.font='26px system-ui';ctx.textAlign='right';ctx.fillText(promptFor(d),width-margin,footerY+58);ctx.textAlign='left';
  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw Error('PNG 导出失败');return blob;
 }
+
 export function installShareUi({app,toast,onOpenContent,confirmPublish=async()=>true}){
  let draft=null,overlay=null,pendingAction=null,paletteRequest=0;
  const rerender=()=>{const p=overlay?.querySelector('#share-preview');if(p&&draft)p.innerHTML=cardMarkup(draft);};

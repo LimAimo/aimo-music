@@ -7,7 +7,8 @@
 }
 .player-shared-ghost img { display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit; }
 /* 固定定位克隆层独立布局，避免大图尺寸插值重新布局页面主体。 */
-.player-shared-ghost { contain: layout paint style; }
+.player-shared-ghost, .player-shared-title-ghost { contain: layout paint style; }
+.player-shared-title-ghost { box-sizing:border-box; max-width:none!important; white-space:normal; color:inherit; overflow:hidden; will-change:left,top,width,height; }
 .full-header,.full-art-section>.album-art { touch-action:none; }
 .full-overlay[data-swipe-bound="1"] {will-change:transform}
 /* Fade the page without moving the cover's measured destination. */
@@ -19,5 +20,5 @@
 @keyframes full-shared-fade-out { from {opacity:1} to {opacity:0} }
 @media(prefers-reduced-motion:reduce) {
  .full-overlay,.full-overlay.is-leaving,.full-overlay.is-shared-entering,.full-overlay.is-leaving.is-shared-leaving {animation:none!important}
- .player-shared-ghost {display:none;will-change:auto}
+ .player-shared-ghost,.player-shared-title-ghost {display:none;will-change:auto}
 }

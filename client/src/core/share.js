@@ -44,7 +44,7 @@ export function posterLayout(data){
  const score=(title>28?3:title>14?1:0)+(artist>32?2:0)+(album>30?1:0)+
   (description>80?4:description>35?2:description?1:0)+(extra>5?5:extra>2?3:extra?2:0);
  const density=score>=4?'dense':score>=2?'balanced':'spacious';
- return {density,coverFraction:{spacious:.66,balanced:.57,dense:.46}[density]};
+ return {density,coverFraction:{spacious:.76,balanced:.66,dense:.50}[density]};
 }
 function toBase64(bytes){let out='';for(const byte of bytes)out+=String.fromCharCode(byte);return btoa(out).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function fromBase64(encoded){const s=encoded.replace(/-/g,'+').replace(/_/g,'/');const binary=atob(s);return Uint8Array.from(binary,c=>c.charCodeAt(0));}
