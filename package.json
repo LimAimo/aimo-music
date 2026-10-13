@@ -1,7 +1,7 @@
 {
   "name": "aimo-music",
   "private": true,
-  "version": "0.4.2",
+  "version": "0.4.3",
   "type": "module",
   "description": "Aimo Music · 轻量网页音乐播放器",
   "scripts": {
@@ -12,3 +12,4 @@
     "check": "npm run test && node --check client/src/main.js"
   }
 }
+

@@ -1,14 +1,15 @@
 {
   "name": "aimo-music-web",
   "private": true,
-  "version": "0.4.2",
+  "version": "0.4.3",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
+    "build": "vite build && node build/check-styles.mjs",
     "preview": "vite preview --host 0.0.0.0"
   },
   "devDependencies": {
     "vite": "^7.3.0"
   }
 }
+

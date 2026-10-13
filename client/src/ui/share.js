@@ -92,16 +92,16 @@ export async function cardPng(input){
  const glow2=ctx.createRadialGradient(width*.78,height*.28,50,width*.78,height*.28,500);
  glow2.addColorStop(0,'rgba(255,255,255,.13)');glow2.addColorStop(1,'rgba(255,255,255,0)');
  ctx.fillStyle=glow2;ctx.fillRect(0,0,width,height);
- // Match the in-page poster's translucent copy area instead of leaving a blank block.
- const panelTop=Math.max(artY+art+42,height*.48),panelBottom=footerY-26;
- ctx.fillStyle='rgba(255,255,255,.10)';ctx.beginPath();ctx.roundRect(margin,panelTop,width-margin*2,panelBottom-panelTop,36);ctx.fill();
- ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=1;ctx.stroke();
  const fg='#fff',sub='rgba(255,255,255,.92)',muted='rgba(255,255,255,.78)',contentWidth=width-2*margin;
  const title=posterTitle(d),artist=posterArtist(d),description=posterDescription(d),album=posterAlbum(d);
  let art=Math.round(Math.min(contentWidth*coverFraction, 700));
  if(density==='dense')art=Math.min(art,465); else if(density==='balanced')art=Math.min(art,600);
  const stats=d.type==='stats'?(d.stats||[]):[],lyrics=d.type==='lyrics'?(d.lines||[]):[];
  const artX=margin,artY=112;
+ // Geometry must be initialized before painting the copy panel.
+ const panelTop=Math.max(artY+art+42,height*.48),panelBottom=footerY-26;
+ ctx.fillStyle='rgba(255,255,255,.10)';ctx.beginPath();ctx.roundRect(margin,panelTop,width-margin*2,panelBottom-panelTop,36);ctx.fill();
+ ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=1;ctx.stroke();
  const img=art>0?await coverImage(coverUrl(d)):null;
  if(art>0){
   ctx.save();ctx.shadowColor='rgba(0,0,0,.30)';ctx.shadowBlur=48;ctx.shadowOffsetY=16;ctx.beginPath();ctx.roundRect(artX,artY,art,art,34);ctx.clip();
@@ -192,3 +192,4 @@ export function installShareUi({app,toast,onOpenContent,confirmPublish=async()=>
  document.addEventListener('keydown',e=>{if(overlay&&e.key==='Escape'){e.preventDefault();close();}});
  return {open,close,readLink:()=>decodeShare(location.hash),view:shareViewerMarkup,invalid:shareInvalidMarkup,get draft(){return draft},openContent:onOpenContent};
 }
+
