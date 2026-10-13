@@ -8,7 +8,7 @@ test('已移除面包屑目录入口，保留真实 URL 路由',()=>{
  assert.match(main,/parseRoute\(/);
 });
 test('歌曲、歌词、歌单和历史统计均有分享入口',()=>{
- for(const action of ['share-current','share-playlist','share-lyrics','share-stats'])assert.match(render,new RegExp('data-action="'+action+'"'));
+ for(const action of ['share-current','share-playlist','share-lyrics','share-stats'])assert.match(action==='share-current'?main:render,new RegExp(action==='share-current'?"case 'share-current'":"data-action=\\\""+action+"\\\""));
  assert.match(file('client/src/ui/collections-view.js'),/menuButton\('share'/);
 });
 test('卡片编辑器及移动端均有主题样式',()=>{

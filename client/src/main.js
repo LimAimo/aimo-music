@@ -193,6 +193,7 @@ function renderPage({ restoreFocus = false } = {}) {
   const main = document.getElementById('main-view');
   const focusedSearch = restoreFocus && document.activeElement?.id === 'search-input';
   const cursor = focusedSearch ? document.activeElement.selectionStart : null;
+  document.body.classList.toggle('share-route-active',state.view==='share');
   main.innerHTML = state.view === 'share'
     ? state.shareData?shareUi.view(state.shareData):shareUi.invalid(state.shareError||'分享内容不存在')
     : state.view === 'search' ? searchMarkup(state)

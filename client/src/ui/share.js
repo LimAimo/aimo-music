@@ -4,7 +4,7 @@ import {extractAmbientColors} from './ambient-palette.js';
 const e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const templates={glass:'柔和氛围',minimal:'极简',poster:'杂志海报',vinyl:'唱片'};
 const ratios={'1:1':[1,1],'4:5':[4,5],'3:4':[3,4],'9:16':[9,16],'16:9':[16,9]};
-const defaults={template:'glass',ratio:'4:5',color:'#8497b0',background:'cover',fields:{cover:true,title:true,artist:true,album:false,logo:true,qr:true,details:true}};
+const defaults={template:'vinyl',ratio:'3:4',color:'#8497b0',background:'gradient',fields:{cover:true,title:true,artist:true,album:false,logo:true,qr:true,details:true}};
 const clone=o=>JSON.parse(JSON.stringify(o));
 const titleFor=d=>d.type==='song'?'歌曲分享':d.type==='playlist'?'歌单分享':d.type==='lyrics'?'歌词分享':'听歌统计';
 function cardMarkup(data){
@@ -15,7 +15,7 @@ function cardMarkup(data){
  const target=data.type==='song'||data.type==='lyrics'?'歌曲':data.type==='playlist'?'歌单':'统计';
  return `<article class="share-card share-card--${s.template} share-card--${s.background}" style="--share-color:${s.color};--share-color-2:${s.color2||s.color};--share-color-3:${s.color3||'#17191f'};--share-ratio:${w}/${h}" aria-label="${target}分享卡片">
  <div class="share-card-inner">${cover}<div class="share-card-text">
- <span class="share-card-kicker">AIMO / ${e(titleFor(data))}</span>
+ <span class="share-card-kicker">AIMO music / ${e(titleFor(data))}</span>
  ${s.fields.title?`<h2>${e(data.title||data.track?.title||data.playlist?.title||'我的音乐')}</h2>`:''}
  ${s.fields.artist?`<p>${e(data.subtitle||data.track?.artist||'')}</p>`:''}
  ${s.fields.album&&data.track?.album?`<p class="share-card-album">${e(data.track.album)}</p>`:''}
@@ -27,23 +27,15 @@ const options=(items,current)=>Object.entries(items).map(([value,label])=>`<opti
 export function shareEditorMarkup(data){
  const s=data.style;
  return `<div class="share-modal-backdrop" data-share-backdrop><section class="share-modal" role="dialog" aria-modal="true" aria-label="分享卡片编辑器">
- <header class="share-modal-header"><div><span class="share-eyebrow">AIMO MUSIC / SHARE</span><h2>分享卡片</h2></div><button type="button" class="share-icon-btn" data-share-action="close" aria-label="关闭">${icon('close',20)}</button></header>
+ <header class="share-modal-header"><div><span class="share-eyebrow">AIMO MUSIC / SHARE</span><h2>分享音乐</h2></div><button type="button" class="share-icon-btn" data-share-action="close" aria-label="关闭">${icon('close',20)}</button></header>
  <div class="share-modal-body"><div class="share-preview-wrap"><div class="share-preview" id="share-preview">${cardMarkup(data)}</div></div>
- <form class="share-editor-controls" id="share-editor-form"><h3>自定义卡片</h3>
- <div class="share-control-row"><label for="share-template">卡片模板</label><select id="share-template" name="template">${options(templates,s.template)}</select></div>
- <div class="share-control-row"><label for="share-ratio">画面比例</label><select id="share-ratio" name="ratio">${options(Object.fromEntries(Object.keys(ratios).map(x=>[x,x])),s.ratio)}</select></div>
- <div class="share-control-row"><label for="share-background">封面氛围</label><select id="share-background" name="background">${options({cover:'柔和氛围',gradient:'流动渐变',solid:'沉浸纯色'},s.background)}</select></div>
- <p class="share-help share-palette-note">色彩自动取自歌曲或歌单封面，切换模板和氛围风格即可，无需手动选色。</p>
- <fieldset class="share-fields"><legend>显示信息</legend>${Object.entries({cover:'封面',title:'标题',artist:'歌手 / 描述',album:'专辑',logo:'AimoMusic Logo',qr:'打开音乐提示',details:'统计数据'}).map(([key,label])=>`<label class="share-check"><input type="checkbox" name="field-${key}" ${s.fields[key]?'checked':''}><span>${label}</span></label>`).join('')}</fieldset>
- ${data.type==='lyrics'?'<p class="share-help">歌词片段来自当前歌曲的歌词，分享前请确认内容。</p>':''}
- <p class="share-help">分享信息写在链接中，不上传数据库。持有链接的人均可读取已选信息。</p>
- </form></div>
+ <div class="share-fixed-details"><strong>音乐分享</strong><p>唱片模板 · 3:4 · 流动渐变</p><p>根据音乐封面自动搭配颜色，生成专属分享卡片。</p><p class="share-help">分享信息保存在链接中，不上传数据库。持有链接的人均可读取。</p></div></div>
  <div class="share-inline-confirm" data-share-confirm hidden role="group" aria-label="确认公开分享"><p>链接包含已选中的卡片信息，任何获得链接的人都能读取，且链接不会自动失效。确定继续吗？</p><div><button class="share-btn share-btn-secondary" type="button" data-share-action="cancel-confirm">取消</button><button class="share-btn share-btn-primary" type="button" data-share-action="confirm">确认分享</button></div></div>
  <footer class="share-modal-actions"><button class="share-btn share-btn-secondary" type="button" data-share-action="copy">复制链接</button><button class="share-btn share-btn-secondary" type="button" data-share-action="save">保存 PNG</button><button class="share-btn share-btn-primary" type="button" data-share-action="native">系统分享</button></footer>
  </section></div>`;
 }
 export function shareViewerMarkup(data){
- return `<div class="page share-public-page"><div class="share-public-header"><span class="share-eyebrow">AIMO MUSIC</span><h1>一份音乐分享</h1><p>来自 AimoMusic 的音乐卡片</p></div><div class="share-public-card">${cardMarkup(data)}</div><div class="share-public-actions">${data.type==='stats'?'': '<button type="button" class="share-btn share-btn-primary" data-action="share-open-content">打开对应内容</button>'}<button type="button" class="share-btn share-btn-secondary" data-action="share-recreate">制作同款卡片</button></div></div>`;
+ return `<div class="page share-public-page"><div class="share-public-header"><span class="share-eyebrow">AIMO MUSIC</span><h1>一份音乐分享</h1><p>来自 AimoMusic 的音乐卡片</p></div><div class="share-public-card">${cardMarkup(data)}</div><div class="share-public-actions">${data.type==='stats'?'': '<button type="button" class="share-btn share-btn-primary" data-action="share-open-content">打开对应内容</button>'}<button type="button" class="share-btn share-btn-secondary" data-action="share-recreate">分享这份音乐</button></div></div>`;
 }
 export function shareInvalidMarkup(message){
  return `<div class="page share-public-page"><h1>分享链接无法打开</h1><p>${e(message)}</p><button class="share-btn share-btn-primary" data-action="navigate" data-view="home">返回发现</button></div>`;
@@ -76,7 +68,7 @@ export async function cardPng(data){
   else{ctx.fillStyle=s.color;ctx.fillRect(margin,y,size,size);ctx.fillStyle='#fff';ctx.font='bold 80px system-ui';ctx.fillText('♫',margin+size/2-40,y+size/2+25);}
   y+=size+60;
  }
- ctx.fillStyle=sub;ctx.font='600 28px system-ui';ctx.fillText('AIMO / '+titleFor(d),margin,y);y+=58;
+ ctx.fillStyle=sub;ctx.font='600 28px system-ui';ctx.fillText('AIMO music / '+titleFor(d),margin,y);y+=58;
  if(s.fields.title){ctx.fillStyle=fg;ctx.font='bold 62px system-ui';for(const line of wrap(ctx,d.title||d.track?.title||d.playlist?.title||'我的音乐',width-2*margin).slice(0,3)){ctx.fillText(line,margin,y);y+=76;}}
  if(s.fields.artist){ctx.fillStyle=sub;ctx.font='34px system-ui';for(const line of wrap(ctx,d.subtitle||d.track?.artist||'',width-2*margin).slice(0,2)){ctx.fillText(line,margin,y);y+=48;}}
  if(s.fields.album&&d.track?.album){ctx.fillText(d.track.album.slice(0,45),margin,y);y+=48;}
@@ -139,13 +131,6 @@ export function installShareUi({app,toast,onOpenContent,confirmPublish=async()=>
  document.addEventListener('click',e=>{
   if(overlay&&e.target.classList?.contains('share-modal-backdrop')){close();return;}
   const button=e.target.closest('[data-share-action]');if(!button||!overlay?.contains(button))return;e.preventDefault();try{act(button.dataset.shareAction);}catch(err){toast(err.message||'分享失败','error');}
- });
- document.addEventListener('change',e=>{
-  if(!overlay||!e.target.closest('#share-editor-form'))return;
-  const form=overlay.querySelector('#share-editor-form');const data=new FormData(form);
-  draft.style.template=data.get('template');draft.style.ratio=data.get('ratio');draft.style.background=data.get('background');resetConfirm();
-  for(const key of Object.keys(draft.style.fields))draft.style.fields[key]=data.has('field-'+key);
-  rerender();
  });
  document.addEventListener('keydown',e=>{if(overlay&&e.key==='Escape'){e.preventDefault();close();}});
  return {open,close,readLink:()=>decodeShare(location.hash),view:shareViewerMarkup,invalid:shareInvalidMarkup,get draft(){return draft},openContent:onOpenContent};

@@ -10,6 +10,8 @@ test('分享 UI 不再显示手动颜色选择器',()=>{
  const source=read('client/src/ui/share.js');
  assert.doesNotMatch(source,/id="share-color"/);
  assert.match(source,/extractAmbientColors/);
+ assert.doesNotMatch(source,/id="share-template"/);
+ assert.doesNotMatch(source,/id="share-ratio"/);
  assert.match(source,/share-inline-confirm/);
 });
 test('系统分享直接在点击确认时调用，不在异步确认之后调用',()=>{

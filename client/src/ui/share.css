@@ -88,3 +88,35 @@ body.share-dialog-open{overflow:hidden}
  .share-control-row{gap:12px}
  .share-control-row select{max-width:62%}
 }
+
+/* Fixed share experience: centered, single-screen, without the app chrome. */
+body.share-route-active{overflow:hidden!important;height:100dvh}
+body.share-route-active #header-slot,body.share-route-active #player-slot,body.share-route-active #mobile-nav,body.share-route-active .mobile-bottom-nav,body.share-route-active .bottom-nav{display:none!important}
+body.share-route-active #main-view{height:100dvh;min-height:0;overflow:hidden;padding:0!important;margin:0!important}
+body.share-route-active .share-public-page{box-sizing:border-box;height:100dvh;min-height:0;overflow:hidden;padding:clamp(12px,3dvh,28px) 18px;gap:clamp(9px,2dvh,20px);justify-content:center;max-width:100%;margin:0 auto}
+.share-public-card{width:min(100%,min(400px,calc((100dvh - 230px)*.75)));min-width:0;flex:0 1 auto;min-height:0}
+.share-public-card .share-card{max-height:calc(100dvh - 230px);margin-inline:auto}
+.share-public-header{flex:none}
+.share-public-header h1{font-size:clamp(19px,3.5dvh,28px);margin:4px 0}
+.share-public-header p{margin:0}
+.share-public-actions{flex:none;width:min(100%,420px);gap:10px}
+.share-public-actions .share-btn{flex:1;min-width:120px}
+.share-modal{width:min(510px,100%);max-height:min(96dvh,850px)}
+.share-modal-body{display:flex;flex-direction:column;align-items:stretch;overflow:auto;min-height:0}
+.share-preview-wrap{padding:24px 18px;min-height:0}
+.share-preview{width:min(100%,300px)}
+.share-fixed-details{padding:14px 22px 18px;text-align:center;display:grid;gap:6px}
+.share-fixed-details strong{font-size:15px}
+.share-fixed-details p{font-size:12px;line-height:1.5;color:var(--text-secondary);margin:0}
+.share-fixed-details .share-help{font-size:11px;color:var(--text-tertiary)}
+@media(max-width:700px){
+ body.share-route-active .share-public-page{padding:14px 14px max(14px,env(safe-area-inset-bottom));gap:12px}
+ .share-public-card{width:min(100%,calc((100dvh - 225px)*.75),360px)}
+ .share-public-card .share-card{max-height:calc(100dvh - 225px)}
+ .share-public-header h1{font-size:22px}
+ .share-modal-body{display:flex;flex-direction:column}
+ .share-preview{width:min(100%,min(290px,calc((100dvh - 310px)*.75)))}
+ .share-preview-wrap{padding:16px}
+ .share-fixed-details{padding:12px 18px}
+}
+@media(max-height:600px){.share-public-header p{display:none}.share-public-card{width:min(100%,calc((100dvh - 170px)*.75))}.share-public-card .share-card{max-height:calc(100dvh - 170px)}.share-public-page{gap:8px!important}}
